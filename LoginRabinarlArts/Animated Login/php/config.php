@@ -1,7 +1,11 @@
 <?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 $host = "localhost";
-$user = "root"; // Usuario por defecto en XAMPP
-$pass = ""; // Normalmente no tiene contraseña en XAMPP
+$user = "root";
+$pass = "";
 $dbname = "rabinalarts_db";
 
 // Crear conexión

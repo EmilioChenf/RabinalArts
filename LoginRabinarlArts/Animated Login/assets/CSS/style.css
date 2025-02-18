@@ -13,7 +13,7 @@ body {
     align-items: center;
     height: 100vh;
     margin: -20px 0 50px;
-		margin-top: 20px;
+    margin-top: 20px;
 }
 
 h1 {
@@ -143,7 +143,6 @@ button.ghost {
 }
 
 .overlay {
-    background: #ff416c;
     background: linear-gradient(to right, #008ecf, #008ecf) no-repeat 0 0 / cover;
     color: #fff;
     position: relative;
@@ -210,84 +209,39 @@ button.ghost {
     transform: translateY(20%);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ===================== */
+/* 🎯 SOLUCIÓN: Google Sign-In */
+/* ===================== */
+
+/* Asegurar que el botón de Google Sign-In sea visible */
+.g_id_signin {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 15px;
+}
+
+/* Ajuste del contenedor de Google Sign-In */
+#g_id_onload {
+    width: 100%;
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* Reducir el margen de los botones sociales */
+.social-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Asegurar que los iconos de Google, Facebook, etc., se vean bien */
+.social-container a {
+    transition: all 0.3s ease-in-out;
+}
+
+.social-container a:hover {
+    background: #008ecf;
+    color: white;
+}
