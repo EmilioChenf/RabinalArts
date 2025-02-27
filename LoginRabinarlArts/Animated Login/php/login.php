@@ -23,7 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($rol === 'admin') {
                 header("Location: admin_dashboard.php"); // Página de admin
             } else {
-                header("Location: cliente_dashboard.php"); // Página de cliente
+                header("Location: ../../../PaginaClientes/index.html"); // Página de cliente
             }
             exit();
         } else {

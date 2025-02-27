@@ -46,7 +46,7 @@ if (!isset($_GET['code'])) {
             if ($rol === 'admin') {
                 header("Location: admin_dashboard.php");
             } else {
-                header("Location: cliente_dashboard.php");
+                header("Location: ../../../PaginaClientes/index.html");
             }
             exit();
         } else {
