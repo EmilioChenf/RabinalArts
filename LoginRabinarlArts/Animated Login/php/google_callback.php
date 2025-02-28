@@ -61,7 +61,7 @@ if (!isset($_GET['code'])) {
                 $_SESSION['user_name'] = $name;
                 $_SESSION['user_role'] = $default_role;
 
-                header("Location: cliente_dashboard.php");
+                header("Location: ../../../PaginaClientes/index.html");
                 exit();
             } else {
                 echo "Error en el registro.";

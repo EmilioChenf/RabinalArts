@@ -1,3 +1,5 @@
+
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -21,6 +23,7 @@
               <label class="icon">
                 <span class="fas fa-search"></span>
               </label>
+              
             </li>
             <li class="car"><a href="carrito.html" >
               <svg class="bi bi-cart3" width="2em" height="2em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -37,12 +40,12 @@
                   <h2>Realizar Compra</h2>
                   <form id="procesar-pago" action="#" method="POST">
                       <div class="contenido titulo">
-                          <label for="cliente" class="">Cliente :</label>
-                          <input type="text" class="form-control" id="cliente" name="cliente" placeholder="Ingrese su nombre" onkeypress="return sololetras(event)" onpaste="return false" required>
+                          <label for="numero" class="">Numero :</label>
+                          <input type="tel" class="form-control" id="numero" name="numero" placeholder="Ingrese su numero" onkeypress="return sololetras(event)" onpaste="return false" required>
                       </div>
                       <div class="contenido titulo">
-                          <label for="email" class="">Correo :</label>
-                          <input type="email" class="form-control" id="correo" name="correo" placeholder="Ingrese su correo" required>
+                          <label for="direccion" class="">Direccion :</label>
+                          <input type="text" class="form-control" id="direccion" name="direccion" placeholder="Ingrese su direccion" required>
                       </div>
 
                       <div id="carrito" class="contenido">
