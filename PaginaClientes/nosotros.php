@@ -33,7 +33,7 @@ session_start();
         <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
         <a class="logout" href="../LoginRabinarlArts/Animated Login/php/logout.php">Cerrar sesión</a>
       <?php else: ?>
-        <a href="../Animated Login/login.php">Iniciar sesión</a>
+        <a href="../LoginRabinarlArts/Animated%20Login/">Iniciar sesión</a>
       <?php endif; ?>
     </li>
   </ul>
