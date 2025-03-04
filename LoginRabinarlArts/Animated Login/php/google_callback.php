@@ -46,7 +46,7 @@ if (!isset($_GET['code'])) {
             if ($rol === 'admin') {
                 header("Location: admin_dashboard.php");
             } else {
-                header("Location: ../../../PaginaClientes/index.html");
+                header("Location: ../../../PaginaClientes/index.php");
             }
             exit();
         } else {
@@ -61,7 +61,7 @@ if (!isset($_GET['code'])) {
                 $_SESSION['user_name'] = $name;
                 $_SESSION['user_role'] = $default_role;
 
-                header("Location: ../../../PaginaClientes/index.html");
+                header("Location: ../../../PaginaClientes/index.php");
                 exit();
             } else {
                 echo "Error en el registro.";
