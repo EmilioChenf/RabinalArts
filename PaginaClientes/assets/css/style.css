@@ -66,37 +66,48 @@ header a{
 .menu-icon{
     display: none;
 }
-.navigation ul{
-    margin:0;
+.navigation ul {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 0;
+    margin: 0;
     list-style: none;
 }
-.navigation ul li{
-    display: inline-block;
+
+.navigation ul li {
+    display: flex;
+    align-items: center;
+    margin: 0 15px; /* Espaciado uniforme */
 }
-.navigation ul li a{
-    display: block;
-    padding: 0 1rem;
-    font-weight: 700;
+
+.navigation ul .car {
+    margin-left: auto; /* Empuja los elementos siguientes a la derecha */
+    display: flex;
+    align-items: center;
 }
-.navigation ul li a:hover{
-    color: #f2f2f2;
+
+.navigation ul .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Espacio entre el nombre y el botón de cerrar sesión */
 }
-.navigation ul .search-icon input{
-    color: #000;
-    font-size: 16px;
-    border-radius: 5px 0 0 5px;
+
+.navigation ul .user-info .user-name {
+    font-weight: bold;
+    color: white;
 }
-.navigation ul .search-icon .icon{   
-    cursor: pointer;
+
+.navigation ul .user-info .logout {
+    color: red;
+    font-weight: bold;
+    text-decoration: none;
 }
-.navigation ul .search-icon .icon span{
-    font-size: 18px;
-    color: #cccccc;
+
+.navigation ul .user-info .logout:hover {
+    text-decoration: underline;
 }
-.navigation ul .search-icon .icon span:hover{
-    color: #f2f2f2;
-}
+
 .icomin{
     color: #cccccc;
 }

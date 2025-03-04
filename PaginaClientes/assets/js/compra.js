@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     showConfirmButton: false
                 }).then(() => {
                     localStorage.removeItem('productos');
-                    window.location.href = "productos.html";
+                    window.location.href = "productos.php";
                 });
             }
         });
