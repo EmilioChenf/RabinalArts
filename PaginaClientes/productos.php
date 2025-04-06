@@ -227,7 +227,7 @@ session_start();
             <img src="assets/img/11.png" class="card-img">
             <h5>Toallas tipicas, con diseños y colores surtidos</h5>
             
-            <p>S/.<small class="precio">10</small></p>
+            <p>$<small class="precio">10</small></p>
             <div class="cantidad">
               <button class="btn-decrementar">-</button>
               <input type="number" class="cantidad-input" value="1" min="1">
