@@ -12,4 +12,5 @@ document.addEventListener("DOMContentLoaded", function () {
     signInButton.addEventListener("click", function () {
         container.classList.remove("right-panel-active");
     });
+    
 });

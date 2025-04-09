@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['user_role'] = $rol;
 
             if ($rol === 'admin') {
-                header("Location: /sadasd/RabinalArts/PaginaAdmin/dist/pages/index.html"); // Página de admin
+                header("Location: /sadasd/RabinalArts/PaginaAdmin/dist/pages/widgets/small-box.html"); // Página de admin
             } else {
                 header("Location: ../../../PaginaClientes/index.php"); // Página de cliente
             }
