@@ -1,3 +1,36 @@
+<?php
+include 'conexion.php';
+
+if (isset($_POST['guardar'])) {
+  $query = "INSERT INTO proveedores (nombre, direccion, telefono, correo, nit, categoria, condiciones_pago, estado, descripcion) 
+            VALUES (
+              '{$_POST['nombre']}', '{$_POST['direccion']}', '{$_POST['telefono']}', '{$_POST['correo']}',
+              '{$_POST['nit']}', '{$_POST['categoria']}', '{$_POST['condiciones_pago']}',
+              '{$_POST['estado']}', '{$_POST['descripcion']}')";
+  mysqli_query($conn, $query);
+  header('Location: proveedores.php');
+  exit();
+}
+
+if (isset($_POST['actualizar'])) {
+  $query = "UPDATE proveedores SET 
+            nombre='{$_POST['nombre']}', direccion='{$_POST['direccion']}', telefono='{$_POST['telefono']}',
+            correo='{$_POST['correo']}', nit='{$_POST['nit']}', categoria='{$_POST['categoria']}',
+            condiciones_pago='{$_POST['condiciones_pago']}', estado='{$_POST['estado']}', descripcion='{$_POST['descripcion']}'
+            WHERE id = {$_POST['id']}";
+  mysqli_query($conn, $query);
+  header('Location: proveedores.php');
+  exit();
+}
+
+if (isset($_GET['eliminar'])) {
+  $id = $_GET['eliminar'];
+  mysqli_query($conn, "DELETE FROM proveedores WHERE id = $id");
+  header('Location: proveedores.php');
+  exit();
+}
+?>
+
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -108,29 +141,45 @@
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
-                    Widgets
+                    Gestiones
                     <i class="nav-arrow bi bi-chevron-right"></i>
                   </p>
                 </a>
                 <ul class="nav nav-treeview">
+
                   <li class="nav-item">
-                    <a href="../widgets/small-box.html" class="nav-link active">
+                    <a href="../widgets/proveedores.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>Small Box</p>
+                      <p>Gestión de proveedores</p>
                     </a>
                   </li>
+
                   <li class="nav-item">
                     <a href="../widgets/info-box.php" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>info Box</p>
+                      <p>Sistema contable</p>
                     </a>
                   </li>
+
                   <li class="nav-item">
                     <a href="productos.php" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Gestión de Productos</p>
                     </a>
                   </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/compras.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>compras a proveedores</p>
+                    </a>
+                  </li>
+
+
+
+
+
                 </ul>
               </li>
 
@@ -148,29 +197,119 @@
 
       
       <main class="app-main">
-        <!--begin::App Content Header-->
-        <div class="app-content-header">
-          <!--begin::Container-->
-          <div class="container-fluid">
-            <!--begin::Row-->
+      <div class="app-content">
+  <div class="container-fluid">
+    <h3 class="mb-4">Gestión de Proveedores</h3>
 
+    <!-- Formulario para agregar o editar proveedor -->
+    <?php
+    $editar = false;
+    $proveedor = [
+      'id' => '',
+      'nombre' => '',
+      'direccion' => '',
+      'telefono' => '',
+      'correo' => '',
+      'nit' => '',
+      'categoria' => '',
+      'condiciones_pago' => '',
+      'estado' => 'activo',
+      'descripcion' => ''
+    ];
 
+    if (isset($_GET['editar'])) {
+      $editar = true;
+      $id = $_GET['editar'];
+      $result = mysqli_query($conn, "SELECT * FROM proveedores WHERE id = $id");
+      $proveedor = mysqli_fetch_assoc($result);
+    }
 
-            <!--end::Row-->
-          </div>
-          <!--end::Container-->
-        </div>
-        <!--end::App Content Header-->
-        <!--begin::App Content-->
+    if (isset($_POST['guardar'])) {
+      $query = "INSERT INTO proveedores (nombre, direccion, telefono, correo, nit, categoria, condiciones_pago, estado, descripcion) 
+        VALUES (
+          '{$_POST['nombre']}', '{$_POST['direccion']}', '{$_POST['telefono']}', '{$_POST['correo']}',
+          '{$_POST['nit']}', '{$_POST['categoria']}', '{$_POST['condiciones_pago']}',
+          '{$_POST['estado']}', '{$_POST['descripcion']}')";
+      mysqli_query($conn, $query);
+      header('Location: proveedores.php');
+    }
 
+    if (isset($_POST['actualizar'])) {
+      $query = "UPDATE proveedores SET 
+        nombre='{$_POST['nombre']}', direccion='{$_POST['direccion']}', telefono='{$_POST['telefono']}',
+        correo='{$_POST['correo']}', nit='{$_POST['nit']}', categoria='{$_POST['categoria']}',
+        condiciones_pago='{$_POST['condiciones_pago']}', estado='{$_POST['estado']}', descripcion='{$_POST['descripcion']}'
+        WHERE id = {$_POST['id']}";
+      mysqli_query($conn, $query);
+      header('Location: proveedores.php');
+    }
 
-  <!-- AQUI PARA ARRIBA ES LO QUE QUIERO AMÉN AJSDAJSDJASJD    -->
+    if (isset($_GET['eliminar'])) {
+      $id = $_GET['eliminar'];
+      mysqli_query($conn, "DELETE FROM proveedores WHERE id = $id");
+      header('Location: proveedores.php');
+    }
+    ?>
 
-  
-<!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
+    <form method="POST" class="mb-4 row g-3">
+      <input type="hidden" name="id" value="<?= $proveedor['id'] ?>">
+      <div class="col-md-4"><input class="form-control" name="nombre" placeholder="Nombre" value="<?= $proveedor['nombre'] ?>" required></div>
+      <div class="col-md-4"><input class="form-control" name="direccion" placeholder="Dirección" value="<?= $proveedor['direccion'] ?>"></div>
+      <div class="col-md-4"><input class="form-control" name="telefono" placeholder="Teléfono" value="<?= $proveedor['telefono'] ?>"></div>
+      <div class="col-md-4"><input class="form-control" name="correo" placeholder="Correo" value="<?= $proveedor['correo'] ?>"></div>
+      <div class="col-md-4"><input class="form-control" name="nit" placeholder="NIT" value="<?= $proveedor['nit'] ?>"></div>
+      <div class="col-md-4"><input class="form-control" name="categoria" placeholder="Categoría" value="<?= $proveedor['categoria'] ?>"></div>
+      <div class="col-md-4"><input class="form-control" name="condiciones_pago" placeholder="Condiciones de Pago" value="<?= $proveedor['condiciones_pago'] ?>"></div>
+      <div class="col-md-4">
+        <select class="form-select" name="estado">
+          <option value="activo" <?= $proveedor['estado'] == 'activo' ? 'selected' : '' ?>>Activo</option>
+          <option value="inactivo" <?= $proveedor['estado'] == 'inactivo' ? 'selected' : '' ?>>Inactivo</option>
+        </select>
+      </div>
+      <div class="col-md-4"><input class="form-control" name="descripcion" placeholder="Descripción" value="<?= $proveedor['descripcion'] ?>"></div>
+      <div class="col-12">
+        <button type="submit" name="<?= $editar ? 'actualizar' : 'guardar' ?>" class="btn btn-<?= $editar ? 'warning' : 'primary' ?>">
+          <?= $editar ? 'Actualizar' : 'Guardar' ?>
+        </button>
+      </div>
+    </form>
 
+    <!-- Tabla de proveedores -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>NIT</th><th>Estado</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php
+          $resultado = mysqli_query($conn, "SELECT * FROM proveedores ORDER BY fecha_registro DESC");
+          while ($fila = mysqli_fetch_assoc($resultado)):
+          ?>
+          <tr>
+            <td><?= $fila['id'] ?></td>
+            <td><?= $fila['nombre'] ?></td>
+            <td><?= $fila['telefono'] ?></td>
+            <td><?= $fila['correo'] ?></td>
+            <td><?= $fila['nit'] ?></td>
+            <td>
+              <span class="badge bg-<?= $fila['estado'] === 'activo' ? 'success' : 'secondary' ?>">
+                <?= ucfirst($fila['estado']) ?>
+              </span>
+            </td>
+            <td>
+              <a href="?editar=<?= $fila['id'] ?>" class="btn btn-sm btn-warning">Editar</a>
+              <a href="?eliminar=<?= $fila['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Seguro que deseas eliminar este proveedor?')">Eliminar</a>
+            </td>
+          </tr>
+          <?php endwhile; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-        <!--end::App Content-->
       </main>
 
       <!--end::App Main-->

@@ -1,0 +1,26 @@
+========== NUEVA COMPRA ==========
+❌ Cookie 'carrito' vacía o no existe
+========== NUEVA COMPRA ==========
+❌ Cookie 'carrito' vacía o no existe
+========== NUEVA COMPRA ==========
+🧾 COOKIE CRUDA:
+[{"id":16,"cantidad":2},{"id":17,"cantidad":1}]
+
+✅ JSON DECODE:
+Array
+(
+    [0] => Array
+        (
+            [id] => 16
+            [cantidad] => 2
+        )
+
+    [1] => Array
+        (
+            [id] => 17
+            [cantidad] => 1
+        )
+
+)
+
+❌ Error al insertar venta: Cannot add or update a child row: a foreign key constraint fails (`rabinalarts_db`.`ventas`, CONSTRAINT `ventas_ibfk_1` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`))

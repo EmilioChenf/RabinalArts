@@ -1,4 +1,21 @@
-<?php include 'conexion.php'; ?>
+<?php include 'conexion.php';
+
+if (isset($_POST['guardar'])) {
+  $proveedor_id = $_POST['proveedor_id'];
+  $producto = $_POST['producto'];
+  $fecha = $_POST['fecha_compra'];
+  $costo_unitario = $_POST['costo_unitario'];
+  $cantidad = $_POST['cantidad'];
+  $total = $costo_unitario * $cantidad;
+
+  $query = "INSERT INTO compras_proveedor (proveedor_id, producto, fecha_compra, costo_unitario, cantidad, costo_total)
+            VALUES ('$proveedor_id', '$producto', '$fecha', '$costo_unitario', '$cantidad', '$total')";
+  mysqli_query($conn, $query);
+  header("Location: compras.php");
+  exit();
+}
+?>
+
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -145,9 +162,10 @@
                   </li>
 
 
-                  
+
                 </ul>
               </li>
+
 
 
             </ul>
@@ -161,139 +179,141 @@
 
 
       
-
-
-
-      <!-- Contenido Principal DE LA PÁGINA -->
       <main class="app-main">
-        <div class="app-content-header">
-          <div class="container-fluid">
-            <div class="row">
-              <div class="col-sm-6"><h3 class="mb-0">Gestión de Productos</h3></div>
-            </div>
-          </div>
-        </div>
+      <div class="container mt-4">
+  <h2 class="mb-4">Registrar Compra a Proveedor</h2>
+  <form action="" method="POST" class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Proveedor:</label>
+      <select name="proveedor_id" class="form-select" required>
+        <?php
+          $resultado = mysqli_query($conn, "SELECT id, nombre FROM proveedores WHERE estado = 'activo'");
+          while ($proveedor = mysqli_fetch_assoc($resultado)) {
+            echo "<option value='{$proveedor['id']}'>{$proveedor['nombre']}</option>";
+          }
+        ?>
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Producto:</label>
+      <input type="text" name="producto" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Fecha de compra:</label>
+      <input type="date" name="fecha_compra" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Costo unitario (Q):</label>
+      <input type="number" step="0.01" name="costo_unitario" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Cantidad:</label>
+      <input type="number" name="cantidad" class="form-control" required>
+    </div>
+    <div class="col-12">
+      <button type="submit" name="guardar" class="btn btn-primary">Guardar compra</button>
+    </div>
+  </form>
 
-        <div class="app-content">
-          <div class="container-fluid">
+  <hr class="my-4">
 
-            <!-- Formulario -->
-            <div class="card card-primary mb-4">
-              <div class="card-header"><h3 class="card-title">Agregar nuevo producto</h3></div>
-              <div class="card-body">
-                <form action="crear_producto.php" method="POST" enctype="multipart/form-data">
-                  <div class="row">
-                    <div class="col-md-6 mb-3">
-                      <label>Nombre</label>
-                      <input type="text" name="nombre" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Categoría</label>
-                      <input type="text" name="categoria" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Precio ($)</label>
-                      <input type="number" step="0.01" name="precio" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Stock</label>
-                      <input type="number" name="stock" class="form-control" required />
-                    </div>
-                    <div class="col-md-12 mb-3">
-                      <label>Descripción</label>
-                      <textarea name="descripcion" class="form-control" required></textarea>
-                    </div>
-                    <div class="col-md-12 mb-3">
-                      <label>Imagen</label>
-                      <input type="file" name="imagen" class="form-control" accept="image/*" />
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-success">Guardar</button>
-                </form>
-              </div>
-            </div>
+  <h3>Listado de Compras</h3>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Proveedor</th>
+        <th>Producto</th>
+        <th>Fecha</th>
+        <th>Unitario (Q)</th>
+        <th>Cantidad</th>
+        <th>Total (Q)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php
+        $result = mysqli_query($conn, "
+          SELECT c.*, p.nombre AS proveedor
+          FROM compras_proveedor c
+          JOIN proveedores p ON c.proveedor_id = p.id
+        ");
+        while ($row = mysqli_fetch_assoc($result)) {
+          echo "<tr>
+                  <td>{$row['proveedor']}</td>
+                  <td>{$row['producto']}</td>
+                  <td>{$row['fecha_compra']}</td>
+                  <td>Q {$row['costo_unitario']}</td>
+                  <td>{$row['cantidad']}</td>
+                  <td>Q {$row['costo_total']}</td>
+                </tr>";
+        }
+      ?>
+    </tbody>
+  </table>
+</div>
 
-            <!-- Tabla -->
-            <div class="card card-outline card-secondary">
-              <div class="card-header"><h3 class="card-title">Lista de productos</h3></div>
-              <div class="card-body table-responsive">
-                <table class="table table-bordered table-striped">
-                  <thead class="table-dark">
-                    <tr>
-                      <th>ID</th>
-                      <th>Nombre</th>
-                      <th>Categoría</th>
-                      <th>Precio</th>
-                      <th>Stock</th>
-                      <th>Imagen</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php
-                    $productos = mysqli_query($conn, "SELECT * FROM productos ORDER BY fecha_creacion DESC");
-                    while ($row = mysqli_fetch_assoc($productos)):
-                    ?>
-                      <tr>
-                        <td><?= $row['id'] ?></td>
-                        <td><?= $row['nombre'] ?></td>
-                        <td><?= $row['categoria'] ?></td>
-                        <td>$ <?= number_format($row['precio'], 2) ?></td>
-                        <td><?= $row['stock'] ?></td>
-                        <td>
-                          <?php if ($row['imagen']): ?>
-                            <img src="uploads/<?= $row['imagen'] ?>" width="60" />
-                          <?php else: ?>
-                            Sin imagen
-                          <?php endif; ?>
-                        </td>
-                        <td>
-                          <a href="editar_producto.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
-                          <a href="eliminar_producto.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este producto?')">Eliminar</a>
-                        </td>
-                      </tr>
-                    <?php endwhile; ?>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-        </div>
       </main>
 
-
-
-
-
-
-      <!-- Footer -->
+      <!--end::App Main-->
+      <!--begin::Footer-->
       <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">Sistema Inventario</div>
-        <strong>Copyright &copy; <?= date('Y') ?> <a href="#">TuEmpresa</a>.</strong> Todos los derechos reservados.
+        <!--begin::To the end-->
+        <div class="float-end d-none d-sm-inline">Anything you want</div>
+        <!--end::To the end-->
+        <!--begin::Copyright-->
+        <strong>
+          Copyright &copy; 2014-2024&nbsp;
+          <a href="https://adminlte.io" class="text-decoration-none"></a>.
+        </strong>
+        All rights reserved.
+        <!--end::Copyright-->
       </footer>
+      <!--end::Footer-->
     </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+    <!--end::App Wrapper-->
+    <!--begin::Script-->
+    <!--begin::Third Party Plugin(OverlayScrollbars)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
+      integrity="sha256-dghWARbRe2eLlIJ56wNB+b760ywulqK3DzZYEpsg2fQ="
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+      integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
+      integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../../../dist/js/adminlte.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <?php if (isset($_GET['mensaje'])): ?>
+    <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
     <script>
-      let mensaje = "<?= $_GET['mensaje'] ?>";
-      if (mensaje === "creado") {
-        Swal.fire({ icon: 'success', title: 'Producto agregado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "actualizado") {
-        Swal.fire({ icon: 'success', title: 'Producto actualizado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "eliminado") {
-        Swal.fire({ icon: 'success', title: 'Producto eliminado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "error") {
-        Swal.fire({ icon: 'error', title: 'Ocurrió un error', timer: 2000, showConfirmButton: false });
-      }
+      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
+      const Default = {
+        scrollbarTheme: 'os-theme-light',
+        scrollbarAutoHide: 'leave',
+        scrollbarClickScroll: true,
+      };
+      document.addEventListener('DOMContentLoaded', function () {
+        const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
+        if (sidebarWrapper && typeof OverlayScrollbarsGlobal?.OverlayScrollbars !== 'undefined') {
+          OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
+            scrollbars: {
+              theme: Default.scrollbarTheme,
+              autoHide: Default.scrollbarAutoHide,
+              clickScroll: Default.scrollbarClickScroll,
+            },
+          });
+        }
+      });
     </script>
-    <?php endif; ?>
+    <!--end::OverlayScrollbars Configure-->
+    <!--end::Script-->
   </body>
+  <!--end::Body-->
 </html>

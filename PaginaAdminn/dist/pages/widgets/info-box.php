@@ -104,34 +104,50 @@
 
 
 
-
-              <li class="nav-item menu-open">
+            <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
-                    Widgets
+                    Gestiones
                     <i class="nav-arrow bi bi-chevron-right"></i>
                   </p>
                 </a>
                 <ul class="nav nav-treeview">
+
                   <li class="nav-item">
-                    <a href="../widgets/small-box.html" class="nav-link active">
+                    <a href="../widgets/proveedores.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>Small Box</p>
+                      <p>Gestión de proveedores</p>
                     </a>
                   </li>
+
                   <li class="nav-item">
                     <a href="../widgets/info-box.php" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>info Box</p>
+                      <p>Sistema contable</p>
                     </a>
                   </li>
+
                   <li class="nav-item">
                     <a href="productos.php" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Gestión de Productos</p>
                     </a>
                   </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/compras.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>compras a proveedores</p>
+                    </a>
+                  </li>
+
+
+
+
+
+
                 </ul>
               </li>
 

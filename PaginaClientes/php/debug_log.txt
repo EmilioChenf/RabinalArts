@@ -1,0 +1,23 @@
+{"productos":[{"imagen":"http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68045a505a4b4_5.png","titulo":"asdasd","precio":120,"id":"17","cantidad":2},{"imagen":"http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68042cc125ce9_Captura%20de%20pantalla%202025-03-23%20144710.png","titulo":"aspirina","precio":3,"id":"16","cantidad":3}]}Productos crudos: [{"imagen":"http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68045a505a4b4_5.png","titulo":"asdasd","precio":120,"id":"17","cantidad":9},{"imagen":"http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68042cc125ce9_Captura%20de%20pantalla%202025-03-23%20144710.png","titulo":"aspirina","precio":3,"id":"16","cantidad":2}]
+Decodificado: Array
+(
+    [0] => Array
+        (
+            [imagen] => http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68045a505a4b4_5.png
+            [titulo] => asdasd
+            [precio] => 120
+            [id] => 17
+            [cantidad] => 9
+        )
+
+    [1] => Array
+        (
+            [imagen] => http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/68042cc125ce9_Captura%20de%20pantalla%202025-03-23%20144710.png
+            [titulo] => aspirina
+            [precio] => 3
+            [id] => 16
+            [cantidad] => 2
+        )
+
+)
+
