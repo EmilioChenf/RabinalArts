@@ -44,7 +44,7 @@ if (!isset($_GET['code'])) {
             $_SESSION['user_role'] = $rol;
 
             if ($rol === 'admin') {
-                header("Location: admin_dashboard.php");
+                header("Location: /sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/productos.php");
             } else {
                 header("Location: ../../../PaginaClientes/index.php");
             }

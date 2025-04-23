@@ -1,37 +1,49 @@
 <?php
+// venta_factura.php
 session_start();
 include 'conexion.php';
 
-$id_usuario = $_SESSION['id'] ?? null;
-
-if (!$id_usuario) {
-  header('Location: login.php');
-  exit;
+// Inicializar detalle si no existe
+if (!isset($_SESSION['factura_detalle'])) {
+    $_SESSION['factura_detalle'] = [];
 }
 
 $mensaje = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-  $producto_id = $_POST['producto_id'];
-  $cantidad = $_POST['cantidad'];
+// Agregar producto
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['agregar'])) {
+    $producto_id = $_POST['producto_id'];
+    $cantidad = $_POST['cantidad'];
+    $sql = $conn->query("SELECT nombre, precio FROM productos WHERE id = $producto_id");
+    if ($row = $sql->fetch_assoc()) {
+        $_SESSION['factura_detalle'][] = [
+            'producto_id' => $producto_id,
+            'nombre' => $row['nombre'],
+            'cantidad' => $cantidad,
+            'precio' => $row['precio'],
+            'subtotal' => $row['precio'] * $cantidad
+        ];
+    }
+}
 
-  // Obtener precio del producto
-  $consulta = mysqli_query($conn, "SELECT precio FROM productos WHERE id = $producto_id");
-  $producto = mysqli_fetch_assoc($consulta);
-  $precio = $producto['precio'];
-  $total = $cantidad * $precio;
+// Buscar cliente por ID
+$cliente_info = [];
+if (isset($_GET['cliente_id'])) {
+    $cid = (int) $_GET['cliente_id'];
+    $sql = $conn->query("SELECT * FROM usuarios WHERE id = $cid");
+    $cliente_info = $sql->fetch_assoc();
 
-  // Insertar encabezado de venta
-  mysqli_query($conn, "INSERT INTO ventas (usuario_id, fecha) VALUES ($id_usuario, NOW())");
-  $id_venta = mysqli_insert_id($conn);
-
-  // Insertar detalle de venta
-  mysqli_query($conn, "INSERT INTO detalle_venta (venta_id, producto_id, cantidad, precio_unitario, total) 
-    VALUES ($id_venta, $producto_id, $cantidad, $precio, $total)");
-
-  $mensaje = "✅ Factura generada con éxito. Total: Q$total";
+    // Obtener ultima venta
+    $venta = $conn->query("SELECT * FROM ventas WHERE cliente_id = $cid ORDER BY id DESC LIMIT 1")->fetch_assoc();
+    $venta_id = $venta['id'] ?? 0;
+    if ($venta_id) {
+        $detalles = $conn->query("SELECT d.*, p.nombre FROM detalle_venta d JOIN productos p ON d.producto_id = p.id WHERE d.venta_id = $venta_id");
+    }
 }
 ?>
+
+
+
 
 <!doctype html>
 <html lang="en">
@@ -139,11 +151,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
 
-              <li class="nav-item menu-open">
+            <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
-                    Widgets
+                    Gestiones
                     <i class="nav-arrow bi bi-chevron-right"></i>
                   </p>
                 </a>
@@ -152,14 +164,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                   <li class="nav-item">
                     <a href="../widgets/proveedores.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>Small Box</p>
+                      <p>Gestión de proveedores</p>
                     </a>
                   </li>
 
                   <li class="nav-item">
                     <a href="../widgets/info-box.php" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>info Box</p>
+                      <p>Sistema contable</p>
                     </a>
                   </li>
 
@@ -174,24 +186,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                   <li class="nav-item">
                     <a href="../widgets/compras.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>compras</p>
+                      <p>compras a proveedores</p>
+                    </a>
+                  </li>
+
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/venta_factura.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Generar Facturas</p>
                     </a>
                   </li>
 
                   <li class="nav-item">
-                    <a href="../widgets/compras.php" class="nav-link active">
+                    <a href="../widgets/clientes_info.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
-                      <p>ventas</p>
+                      <p>Info Clientes</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item">
+                    <a href="../widgets/planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Planilla de sueldos</p>
                     </a>
                   </li>
 
 
 
 
+                  
 
+
+                  
                 </ul>
               </li>
-
 
 
             </ul>
@@ -205,12 +235,143 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
       
-      <main class="app-main">
-        
-      
-      </main>
 
-      <!--end::App Main-->
+
+
+      <main class="app-main p-4">
+  <div class="container">
+    <h1 class="mb-4">Generar Factura</h1>
+
+    <!-- Encabezado Empresa -->
+    <div class="mb-3">
+      <h4 class="fw-bold">RABINALARTS</h4>
+      <p><strong>Fecha:</strong> <?= date("Y-m-d") ?> | <strong>Folio:</strong> <?= rand(10000, 99999) ?></p>
+    </div>
+
+    <!-- Buscar cliente -->
+    <form method="GET" class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label for="cliente_id" class="form-label">ID Cliente</label>
+        <input type="number" name="cliente_id" id="cliente_id" class="form-control" required>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-dark">Buscar Cliente</button>
+      </div>
+    </form>
+
+    <!-- Mostrar datos cliente -->
+    <?php if (!empty($cliente_info)): ?>
+    <div class="mb-4 border p-3 bg-light">
+      <h5>Datos del Cliente</h5>
+      <p><strong>ID:</strong> <?= $cliente_info['id'] ?></p>
+      <p><strong>Nombre:</strong> <?= htmlspecialchars($cliente_info['nombre']) ?></p>
+      <p><strong>Correo:</strong> <?= htmlspecialchars($cliente_info['correo']) ?></p>
+      <p><strong>Teléfono:</strong> <?= htmlspecialchars($cliente_info['telefono']) ?></p>
+      <p><strong>Dirección:</strong> <?= htmlspecialchars($cliente_info['direccion']) ?></p>
+    </div>
+    <?php endif; ?>
+
+    <!-- Última factura del cliente -->
+    <?php if (!empty($detalles)): ?>
+    <div class="mb-4">
+      <h5>Última Factura Registrada</h5>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario ($)</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php $total_ultima = 0; ?>
+          <?php while ($row = $detalles->fetch_assoc()): ?>
+            <?php $total_ultima += $row['total']; ?>
+            <tr>
+              <td><?= htmlspecialchars($row['nombre']) ?></td>
+              <td><?= $row['cantidad'] ?></td>
+              <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
+              <td>$<?= number_format($row['total'], 2) ?></td>
+            </tr>
+          <?php endwhile; ?>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" class="text-end">Total:</th>
+            <th>$<?= number_format($total_ultima, 2) ?></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <?php endif; ?>
+
+    <!-- Agregar nuevo producto
+    <form method="POST" class="row g-3 mb-4">
+      <div class="col-md-6">
+        <label for="producto_id" class="form-label">Producto</label>
+        <select name="producto_id" id="producto_id" class="form-select" required>
+          <option value="">Seleccione</option>
+          <?php
+            $productos = mysqli_query($conn, "SELECT id, nombre FROM productos");
+            while ($row = mysqli_fetch_assoc($productos)) {
+              echo "<option value='{$row['id']}'>{$row['nombre']}</option>";
+            }
+          ?>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="cantidad" class="form-label">Cantidad</label>
+        <input type="number" name="cantidad" id="cantidad" class="form-control" min="1" required>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" name="agregar" class="btn btn-primary w-100">Agregar</button>
+      </div>
+    </form> -->
+
+    <!-- Detalle de factura actual -->
+    <?php if (!empty($_SESSION['factura_detalle'])): ?>
+      <h4>Detalle de la factura actual</h4>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php $total = 0; ?>
+          <?php foreach ($_SESSION['factura_detalle'] as $item): ?>
+            <?php $total += $item['subtotal']; ?>
+            <tr>
+              <td><?= htmlspecialchars($item['nombre']) ?></td>
+              <td><?= $item['cantidad'] ?></td>
+              <td>Q<?= number_format($item['precio'], 2) ?></td>
+              <td>Q<?= number_format($item['subtotal'], 2) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" class="text-end">Total:</th>
+            <th>Q<?= number_format($total, 2) ?></th>
+          </tr>
+        </tfoot>
+      </table>
+
+      <form method="POST" action="guardar_factura.php">
+        <div class="text-end">
+          <button type="submit" class="btn btn-success">Confirmar y Ver Factura</button>
+        </div>
+      </form>
+    <?php endif; ?>
+  </div>
+</main>
+
+    
+    <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">
         <!--begin::To the end-->

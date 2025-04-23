@@ -1,4 +1,3 @@
-<?php include 'conexion.php'; ?>
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -105,7 +104,7 @@
 
 
 
-            <li class="nav-item menu-open">
+              <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
@@ -144,8 +143,6 @@
                     </a>
                   </li>
 
-
-
                   <li class="nav-item">
                     <a href="../widgets/venta_factura.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -162,7 +159,7 @@
                   </li>
 
 
-
+                  
                   <li class="nav-item">
                     <a href="../widgets/planilla.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -172,10 +169,9 @@
 
 
 
-
-                  
                 </ul>
               </li>
+
 
 
             </ul>
@@ -189,97 +185,94 @@
 
 
       
-
-
-
-
-  <!-- AQUI PARA ARRIBA ES LO QUE QUIERO AMÉN AJSDAJSDJASJD    -->
-
-      <!--begin::App Main-->
       <main class="app-main">
-    <div class="app-content-header p-4">
-      <div class="container-fluid">
-        <h3 class="mb-0">Sistema Contable</h3>
+      <div class="container mt-4">
+  <h3>Formulario de Cálculo de Sueldos y Horas Extras</h3>
+  <form id="formNomina">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label for="nombre" class="form-label">Nombre</label>
+        <input type="text" class="form-control" id="nombre" required>
+      </div>
+      <div class="col-md-3">
+        <label for="puesto" class="form-label">Puesto</label>
+        <input type="text" class="form-control" id="puesto">
+      </div>
+      <div class="col-md-3">
+        <label for="sueldoBase" class="form-label">Sueldo Ordinario</label>
+        <input type="number" class="form-control" id="sueldoBase" required>
+      </div>
+      <div class="col-md-3">
+        <label for="bonificacion" class="form-label">Bonificación (Q250.00)</label>
+        <input type="number" class="form-control" id="bonificacion" value="250.00" readonly>
+      </div>
+      <div class="col-md-3">
+        <label for="extrasDiurnas" class="form-label">Horas Extras Diurnas</label>
+        <input type="number" class="form-control" id="extrasDiurnas" value="0">
+      </div>
+      <div class="col-md-3">
+        <label for="extrasNocturnas" class="form-label">Horas Extras Nocturnas</label>
+        <input type="number" class="form-control" id="extrasNocturnas" value="0">
+      </div>
+      <div class="col-md-3">
+        <label for="comisiones" class="form-label">Comisiones</label>
+        <input type="number" class="form-control" id="comisiones" value="0">
+      </div>
+      <div class="col-md-3">
+        <label for="anticipos" class="form-label">Anticipos</label>
+        <input type="number" class="form-control" id="anticipos" value="0">
+      </div>
+      <div class="col-md-3">
+        <label for="descuentoJudicial" class="form-label">Descuento Judicial</label>
+        <input type="number" class="form-control" id="descuentoJudicial" value="0">
       </div>
     </div>
 
-    <div class="app-content p-4">
-      <div class="container-fluid">
-
-        <!-- Resumen por Categoría -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Resumen de ingresos por categoría</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Categoría</th><th>Total ingresos (Q)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
-                  while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>Q " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Reporte mensual -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Reporte total de ingresos por mes</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Mes</th><th>Total ingresos (Q)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $reporte = mysqli_query($conn, "
-                    SELECT DATE_FORMAT(fecha_creacion, '%M %Y') AS mes, SUM(precio * stock) AS total 
-                    FROM productos GROUP BY mes ORDER BY fecha_creacion
-                  ");
-                  while($fila = mysqli_fetch_assoc($reporte)) {
-                    echo "<tr><td>{$fila['mes']}</td><td>Q " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Balance General -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Balance general</strong></div>
-          <div class="card-body">
-            <ul>
-              <li><strong>Activos:</strong> Inventario disponible = 
-                <?php
-                  $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "Q " . number_format($activos['total'], 2);
-                ?>
-              </li>
-              <li><strong>Pasivos:</strong> (simulados) = Q 5,000.00</li>
-              <li><strong>Capital:</strong> 
-                <?php
-                  $capital = $activos['total'] - 5000;
-                  echo "Q " . number_format($capital, 2);
-                ?>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <a href="exportar_pdf.php" class="btn btn-danger mt-3" target="_blank">
-  <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-</a>
-
-      </div>
+    <div class="mt-4">
+      <button type="button" class="btn btn-primary" onclick="calcularNomina()">Calcular</button>
     </div>
-  </main>
+
+    <div class="mt-4">
+      <h5>Resultados</h5>
+      <p>Total de Ingresos: Q<span id="totalIngresos">0.00</span></p>
+      <p>ISSS (4.83%): Q<span id="isss">0.00</span></p>
+      <p>ISR (5%): Q<span id="isr">0.00</span></p>
+      <p>Total Descuentos: Q<span id="totalDescuentos">0.00</span></p>
+      <p><strong>Líquido a recibir: Q<span id="liquido">0.00</span></strong></p>
+    </div>
+  </form>
+</div>
+
+<script>
+function calcularNomina() {
+  const sueldo = parseFloat(document.getElementById("sueldoBase").value) || 0;
+  const bonificacion = 250;
+  const extrasD = parseFloat(document.getElementById("extrasDiurnas").value) || 0;
+  const extrasN = parseFloat(document.getElementById("extrasNocturnas").value) || 0;
+  const comisiones = parseFloat(document.getElementById("comisiones").value) || 0;
+  const anticipos = parseFloat(document.getElementById("anticipos").value) || 0;
+  const judicial = parseFloat(document.getElementById("descuentoJudicial").value) || 0;
+
+  const pagoExtraD = extrasD * 7.5;
+  const pagoExtraN = extrasN * 6;
+
+  const totalIngresos = sueldo + bonificacion + comisiones + pagoExtraD + pagoExtraN;
+  const isss = totalIngresos * 0.0483;
+  const isr = ((totalIngresos - isss) * 12 > 78000) ? ((totalIngresos - isss) * 0.05) : 0;
+  const totalDescuentos = isss + isr + anticipos + judicial;
+  const liquido = totalIngresos - totalDescuentos;
+
+  document.getElementById("totalIngresos").textContent = totalIngresos.toFixed(2);
+  document.getElementById("isss").textContent = isss.toFixed(2);
+  document.getElementById("isr").textContent = isr.toFixed(2);
+  document.getElementById("totalDescuentos").textContent = totalDescuentos.toFixed(2);
+  document.getElementById("liquido").textContent = liquido.toFixed(2);
+}
+</script>
 
 
-<!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
+      </main>
+
       <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">
@@ -319,26 +312,7 @@
     <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../../../dist/js/adminlte.js"></script>
     <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
-    <script>
-      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
-      const Default = {
-        scrollbarTheme: 'os-theme-light',
-        scrollbarAutoHide: 'leave',
-        scrollbarClickScroll: true,
-      };
-      document.addEventListener('DOMContentLoaded', function () {
-        const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
-        if (sidebarWrapper && typeof OverlayScrollbarsGlobal?.OverlayScrollbars !== 'undefined') {
-          OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
-            scrollbars: {
-              theme: Default.scrollbarTheme,
-              autoHide: Default.scrollbarAutoHide,
-              clickScroll: Default.scrollbarClickScroll,
-            },
-          });
-        }
-      });
-    </script>
+
     <!--end::OverlayScrollbars Configure-->
     <!--end::Script-->
   </body>

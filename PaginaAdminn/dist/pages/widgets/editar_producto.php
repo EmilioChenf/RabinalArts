@@ -37,15 +37,15 @@ if (isset($_POST['actualizar'])) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="es">
-    <!--begin::Head-->
+<!doctype html>
+<html lang="en">
+  <!--begin::Head-->
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>AdminLTE 4 | Widgets - Gestión de Productos</title>
+    <title>AdminLTE 4 | Widgets - Small Box</title>
     <!--begin::Primary Meta Tags-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="title" content="AdminLTE 4 | Widgets - Gestión de Productos" />
+    <meta name="title" content="AdminLTE 4 | Widgets - Small Box" />
     <meta name="author" content="ColorlibHQ" />
     <meta
       name="description"
@@ -142,6 +142,7 @@ if (isset($_POST['actualizar'])) {
 
 
 
+
             <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
@@ -183,7 +184,34 @@ if (isset($_POST['actualizar'])) {
 
 
 
+                  <li class="nav-item">
+                    <a href="../widgets/venta_factura.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Generar Facturas</p>
+                    </a>
+                  </li>
 
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/clientes_info.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Info Clientes</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Planilla de sueldos</p>
+                    </a>
+                  </li>
+
+
+
+
+                  
                 </ul>
               </li>
 
@@ -196,6 +224,11 @@ if (isset($_POST['actualizar'])) {
       </aside>
       <!--end::Sidebar-->
       <!--begin::App Main-->
+
+
+      
+
+
 
 <head>
     <meta charset="UTF-8">

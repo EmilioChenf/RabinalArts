@@ -163,9 +163,35 @@ if (isset($_POST['guardar'])) {
 
 
 
+                  <li class="nav-item">
+                    <a href="../widgets/venta_factura.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Generar Facturas</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/clientes_info.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Info Clientes</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Planilla de sueldos</p>
+                    </a>
+                  </li>
+
+
+
+
+                  
                 </ul>
               </li>
-
 
 
             </ul>
@@ -176,6 +202,11 @@ if (isset($_POST['guardar'])) {
       </aside>
       <!--end::Sidebar-->
       <!--begin::App Main-->
+
+
+      
+
+
 
 
       
@@ -203,7 +234,7 @@ if (isset($_POST['guardar'])) {
       <input type="date" name="fecha_compra" class="form-control" required>
     </div>
     <div class="col-md-4">
-      <label class="form-label">Costo unitario (Q):</label>
+      <label class="form-label">Costo unitario ($):</label>
       <input type="number" step="0.01" name="costo_unitario" class="form-control" required>
     </div>
     <div class="col-md-4">
@@ -224,9 +255,9 @@ if (isset($_POST['guardar'])) {
         <th>Proveedor</th>
         <th>Producto</th>
         <th>Fecha</th>
-        <th>Unitario (Q)</th>
+        <th>Unitario ($)</th>
         <th>Cantidad</th>
-        <th>Total (Q)</th>
+        <th>Total ($)</th>
       </tr>
     </thead>
     <tbody>

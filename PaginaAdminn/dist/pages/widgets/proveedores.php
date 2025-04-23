@@ -29,6 +29,27 @@ if (isset($_GET['eliminar'])) {
   header('Location: proveedores.php');
   exit();
 }
+
+$editar = false;
+$proveedor = [
+  'id' => '',
+  'nombre' => '',
+  'direccion' => '',
+  'telefono' => '',
+  'correo' => '',
+  'nit' => '',
+  'categoria' => '',
+  'condiciones_pago' => '',
+  'estado' => 'activo',
+  'descripcion' => ''
+];
+
+if (isset($_GET['editar'])) {
+  $editar = true;
+  $id = $_GET['editar'];
+  $result = mysqli_query($conn, "SELECT * FROM proveedores WHERE id = $id");
+  $proveedor = mysqli_fetch_assoc($result);
+}
 ?>
 
 <!doctype html>
@@ -176,6 +197,30 @@ if (isset($_GET['eliminar'])) {
                     </a>
                   </li>
 
+                  <li class="nav-item">
+                    <a href="../widgets/venta_factura.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Generar Facturas</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item">
+                    <a href="../widgets/clientes_info.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Info Clientes</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Planilla de sueldos</p>
+                    </a>
+                  </li>
+
+
+
 
 
 
@@ -197,60 +242,11 @@ if (isset($_GET['eliminar'])) {
 
       
       <main class="app-main">
-      <div class="app-content">
+    <div class="app-content">
   <div class="container-fluid">
     <h3 class="mb-4">Gestión de Proveedores</h3>
 
-    <!-- Formulario para agregar o editar proveedor -->
-    <?php
-    $editar = false;
-    $proveedor = [
-      'id' => '',
-      'nombre' => '',
-      'direccion' => '',
-      'telefono' => '',
-      'correo' => '',
-      'nit' => '',
-      'categoria' => '',
-      'condiciones_pago' => '',
-      'estado' => 'activo',
-      'descripcion' => ''
-    ];
-
-    if (isset($_GET['editar'])) {
-      $editar = true;
-      $id = $_GET['editar'];
-      $result = mysqli_query($conn, "SELECT * FROM proveedores WHERE id = $id");
-      $proveedor = mysqli_fetch_assoc($result);
-    }
-
-    if (isset($_POST['guardar'])) {
-      $query = "INSERT INTO proveedores (nombre, direccion, telefono, correo, nit, categoria, condiciones_pago, estado, descripcion) 
-        VALUES (
-          '{$_POST['nombre']}', '{$_POST['direccion']}', '{$_POST['telefono']}', '{$_POST['correo']}',
-          '{$_POST['nit']}', '{$_POST['categoria']}', '{$_POST['condiciones_pago']}',
-          '{$_POST['estado']}', '{$_POST['descripcion']}')";
-      mysqli_query($conn, $query);
-      header('Location: proveedores.php');
-    }
-
-    if (isset($_POST['actualizar'])) {
-      $query = "UPDATE proveedores SET 
-        nombre='{$_POST['nombre']}', direccion='{$_POST['direccion']}', telefono='{$_POST['telefono']}',
-        correo='{$_POST['correo']}', nit='{$_POST['nit']}', categoria='{$_POST['categoria']}',
-        condiciones_pago='{$_POST['condiciones_pago']}', estado='{$_POST['estado']}', descripcion='{$_POST['descripcion']}'
-        WHERE id = {$_POST['id']}";
-      mysqli_query($conn, $query);
-      header('Location: proveedores.php');
-    }
-
-    if (isset($_GET['eliminar'])) {
-      $id = $_GET['eliminar'];
-      mysqli_query($conn, "DELETE FROM proveedores WHERE id = $id");
-      header('Location: proveedores.php');
-    }
-    ?>
-
+  
     <form method="POST" class="mb-4 row g-3">
       <input type="hidden" name="id" value="<?= $proveedor['id'] ?>">
       <div class="col-md-4"><input class="form-control" name="nombre" placeholder="Nombre" value="<?= $proveedor['nombre'] ?>" required></div>

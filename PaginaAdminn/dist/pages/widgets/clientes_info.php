@@ -1,4 +1,8 @@
-<?php include 'conexion.php'; ?>
+<?php
+include 'conexion.php'; // Asegúrate que esta ruta sea correcta
+session_start();
+?>
+
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -105,7 +109,7 @@
 
 
 
-            <li class="nav-item menu-open">
+              <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
@@ -144,8 +148,6 @@
                     </a>
                   </li>
 
-
-
                   <li class="nav-item">
                     <a href="../widgets/venta_factura.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -162,7 +164,6 @@
                   </li>
 
 
-
                   <li class="nav-item">
                     <a href="../widgets/planilla.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -173,9 +174,9 @@
 
 
 
-                  
                 </ul>
               </li>
+
 
 
             </ul>
@@ -189,97 +190,47 @@
 
 
       
-
-
-
-
-  <!-- AQUI PARA ARRIBA ES LO QUE QUIERO AMÉN AJSDAJSDJASJD    -->
-
-      <!--begin::App Main-->
       <main class="app-main">
-    <div class="app-content-header p-4">
-      <div class="container-fluid">
-        <h3 class="mb-0">Sistema Contable</h3>
-      </div>
+      <div class="app-content">
+  <div class="container-fluid">
+    <h2 class="mb-4 text-center">Información de Clientes Registrados</h2>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th>Rol</th>
+                    <th>Fecha de Registro</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $result = mysqli_query($conn, "SELECT * FROM usuarios WHERE rol = 'cliente' ORDER BY fecha_registro DESC");
+                while ($row = mysqli_fetch_assoc($result)) {
+                    echo "<tr>";
+                    echo "<td>{$row['id']}</td>";
+                    echo "<td>{$row['nombre']}</td>";
+                    echo "<td>{$row['correo']}</td>";
+                    echo "<td>" . ($row['telefono'] ?? 'Sin número') . "</td>";
+                    echo "<td>" . ($row['direccion'] ?? 'Sin dirección') . "</td>";
+                    echo "<td>{$row['rol']}</td>";
+                    echo "<td>{$row['fecha_registro']}</td>";
+                    echo "</tr>";
+                }
+                ?>
+            </tbody>
+        </table>
     </div>
-
-    <div class="app-content p-4">
-      <div class="container-fluid">
-
-        <!-- Resumen por Categoría -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Resumen de ingresos por categoría</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Categoría</th><th>Total ingresos (Q)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
-                  while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>Q " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Reporte mensual -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Reporte total de ingresos por mes</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Mes</th><th>Total ingresos (Q)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $reporte = mysqli_query($conn, "
-                    SELECT DATE_FORMAT(fecha_creacion, '%M %Y') AS mes, SUM(precio * stock) AS total 
-                    FROM productos GROUP BY mes ORDER BY fecha_creacion
-                  ");
-                  while($fila = mysqli_fetch_assoc($reporte)) {
-                    echo "<tr><td>{$fila['mes']}</td><td>Q " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Balance General -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Balance general</strong></div>
-          <div class="card-body">
-            <ul>
-              <li><strong>Activos:</strong> Inventario disponible = 
-                <?php
-                  $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "Q " . number_format($activos['total'], 2);
-                ?>
-              </li>
-              <li><strong>Pasivos:</strong> (simulados) = Q 5,000.00</li>
-              <li><strong>Capital:</strong> 
-                <?php
-                  $capital = $activos['total'] - 5000;
-                  echo "Q " . number_format($capital, 2);
-                ?>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <a href="exportar_pdf.php" class="btn btn-danger mt-3" target="_blank">
-  <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-</a>
-
-      </div>
-    </div>
-  </main>
+  </div>
+</div>
 
 
-<!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
+      </main>
+
       <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">
@@ -319,26 +270,7 @@
     <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../../../dist/js/adminlte.js"></script>
     <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
-    <script>
-      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
-      const Default = {
-        scrollbarTheme: 'os-theme-light',
-        scrollbarAutoHide: 'leave',
-        scrollbarClickScroll: true,
-      };
-      document.addEventListener('DOMContentLoaded', function () {
-        const sidebarWrapper = document.querySelector(SELECTOR_SIDEBAR_WRAPPER);
-        if (sidebarWrapper && typeof OverlayScrollbarsGlobal?.OverlayScrollbars !== 'undefined') {
-          OverlayScrollbarsGlobal.OverlayScrollbars(sidebarWrapper, {
-            scrollbars: {
-              theme: Default.scrollbarTheme,
-              autoHide: Default.scrollbarAutoHide,
-              clickScroll: Default.scrollbarClickScroll,
-            },
-          });
-        }
-      });
-    </script>
+
     <!--end::OverlayScrollbars Configure-->
     <!--end::Script-->
   </body>

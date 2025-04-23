@@ -145,10 +145,36 @@
                   </li>
 
 
+
+                  <li class="nav-item">
+                    <a href="../widgets/venta_factura.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Generar Facturas</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item">
+                    <a href="../widgets/clientes_info.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Info Clientes</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Planilla de sueldos</p>
+                    </a>
+                  </li>
+
+
+
+
                   
                 </ul>
               </li>
-
+x
 
             </ul>
             <!--end::Sidebar Menu-->
