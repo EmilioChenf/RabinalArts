@@ -1,7 +1,14 @@
+<?php
+session_start();
+include 'conexion.php';
+?>
+
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
   <head>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>AdminLTE 4 | Widgets - Small Box</title>
     <!--begin::Primary Meta Tags-->
@@ -183,95 +190,101 @@
       <!--end::Sidebar-->
       <!--begin::App Main-->
 
+      <main class="app-main py-4">
+  <div class="container">
+    <h3 class="mb-4">Generar Planilla</h3>
 
-      
-      <main class="app-main">
-      <div class="container mt-4">
-  <h3>Formulario de Cálculo de Sueldos y Horas Extras</h3>
-  <form id="formNomina">
-    <div class="row g-3">
-      <div class="col-md-3">
-        <label for="nombre" class="form-label">Nombre</label>
-        <input type="text" class="form-control" id="nombre" required>
+    <!-- Formulario -->
+    <form action="guardar_planilla.php" method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
+      <div class="col-md-6">
+        <label class="form-label">Nombre completo</label>
+        <input type="text" name="nombre" required class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="puesto" class="form-label">Puesto</label>
-        <input type="text" class="form-control" id="puesto">
+      <div class="col-md-6">
+        <label class="form-label">Puesto</label>
+        <input type="text" name="puesto" required class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="sueldoBase" class="form-label">Sueldo Ordinario</label>
-        <input type="number" class="form-control" id="sueldoBase" required>
+
+      <div class="col-md-4">
+        <label class="form-label">Sueldo base (Q)</label>
+        <input type="number" step="0.01" name="sueldo_base" required class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="bonificacion" class="form-label">Bonificación (Q250.00)</label>
-        <input type="number" class="form-control" id="bonificacion" value="250.00" readonly>
+      <div class="col-md-4">
+        <label class="form-label">Horas extras</label>
+        <input type="number" name="horas_extras" required class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="extrasDiurnas" class="form-label">Horas Extras Diurnas</label>
-        <input type="number" class="form-control" id="extrasDiurnas" value="0">
+      <div class="col-md-4">
+        <label class="form-label">Comisiones (Q)</label>
+        <input type="number" step="0.01" name="comisiones" class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="extrasNocturnas" class="form-label">Horas Extras Nocturnas</label>
-        <input type="number" class="form-control" id="extrasNocturnas" value="0">
+
+      <div class="col-md-4">
+        <label class="form-label">Bonificación (Q)</label>
+        <input type="number" step="0.01" name="bonificacion" class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="comisiones" class="form-label">Comisiones</label>
-        <input type="number" class="form-control" id="comisiones" value="0">
+      <div class="col-md-4">
+        <label class="form-label">Anticipos (Q)</label>
+        <input type="number" step="0.01" name="anticipos" class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="anticipos" class="form-label">Anticipos</label>
-        <input type="number" class="form-control" id="anticipos" value="0">
+      <div class="col-md-4">
+        <label class="form-label">Descuentos judiciales (Q)</label>
+        <input type="number" step="0.01" name="descuentos_judiciales" class="form-control">
       </div>
-      <div class="col-md-3">
-        <label for="descuentoJudicial" class="form-label">Descuento Judicial</label>
-        <input type="number" class="form-control" id="descuentoJudicial" value="0">
+
+      <div class="col-md-12">
+        <label class="form-label">Otros descuentos (Q)</label>
+        <input type="number" step="0.01" name="otros_descuentos" class="form-control">
+      </div>
+
+      <div class="col-12 text-end">
+        <button type="submit" class="btn btn-primary">Generar Planilla</button>
+      </div>
+      <a href="exportar_planilla_pdf.php" class="btn btn-danger mt-3">Exportar PDF</a>
+
+    </form>
+
+    <!-- Aquí abajo se mostrará la planilla generada con SweetAlert -->
+    <?php if (isset($_GET['success']) && $_GET['success'] == 1): ?>
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <script>
+      Swal.fire({
+        icon: 'success',
+        title: '¡Planilla generada con éxito!',
+        showConfirmButton: false,
+        timer: 2000
+      });
+      </script>
+    <?php endif; ?>
+
+    <?php
+    if (isset($_SESSION['ultimo_id'])):
+      include 'conexion.php';
+      $id = $_SESSION['ultimo_id'];
+      $res = mysqli_query($conn, "SELECT * FROM planilla WHERE id = $id");
+      if ($row = mysqli_fetch_assoc($res)):
+    ?>
+    <div class="card mt-5 border-success shadow">
+      <div class="card-header bg-success text-white">Última Planilla Generada</div>
+      <div class="card-body">
+        <p><strong>Nombre:</strong> <?= htmlspecialchars($row['nombre']) ?></p>
+        <p><strong>Puesto:</strong> <?= htmlspecialchars($row['puesto']) ?></p>
+        <p><strong>Sueldo Base:</strong> Q<?= number_format($row['sueldo_base'], 2) ?></p>
+        <p><strong>Horas Extras:</strong> <?= $row['horas_extras'] ?></p>
+        <p><strong>Bonificación:</strong> Q<?= number_format($row['bonificacion'], 2) ?></p>
+        <p><strong>Total Ingresos:</strong> Q<?= number_format($row['total_ingresos'], 2) ?></p>
+        <p><strong>Total Descuentos:</strong> Q<?= number_format($row['total_descuentos'], 2) ?></p>
+        <p><strong>Líquido a recibir:</strong> <strong>Q<?= number_format($row['liquido_recibir'], 2) ?></strong></p>
       </div>
     </div>
-
-    <div class="mt-4">
-      <button type="button" class="btn btn-primary" onclick="calcularNomina()">Calcular</button>
-    </div>
-
-    <div class="mt-4">
-      <h5>Resultados</h5>
-      <p>Total de Ingresos: Q<span id="totalIngresos">0.00</span></p>
-      <p>ISSS (4.83%): Q<span id="isss">0.00</span></p>
-      <p>ISR (5%): Q<span id="isr">0.00</span></p>
-      <p>Total Descuentos: Q<span id="totalDescuentos">0.00</span></p>
-      <p><strong>Líquido a recibir: Q<span id="liquido">0.00</span></strong></p>
-    </div>
-  </form>
-</div>
-
-<script>
-function calcularNomina() {
-  const sueldo = parseFloat(document.getElementById("sueldoBase").value) || 0;
-  const bonificacion = 250;
-  const extrasD = parseFloat(document.getElementById("extrasDiurnas").value) || 0;
-  const extrasN = parseFloat(document.getElementById("extrasNocturnas").value) || 0;
-  const comisiones = parseFloat(document.getElementById("comisiones").value) || 0;
-  const anticipos = parseFloat(document.getElementById("anticipos").value) || 0;
-  const judicial = parseFloat(document.getElementById("descuentoJudicial").value) || 0;
-
-  const pagoExtraD = extrasD * 7.5;
-  const pagoExtraN = extrasN * 6;
-
-  const totalIngresos = sueldo + bonificacion + comisiones + pagoExtraD + pagoExtraN;
-  const isss = totalIngresos * 0.0483;
-  const isr = ((totalIngresos - isss) * 12 > 78000) ? ((totalIngresos - isss) * 0.05) : 0;
-  const totalDescuentos = isss + isr + anticipos + judicial;
-  const liquido = totalIngresos - totalDescuentos;
-
-  document.getElementById("totalIngresos").textContent = totalIngresos.toFixed(2);
-  document.getElementById("isss").textContent = isss.toFixed(2);
-  document.getElementById("isr").textContent = isr.toFixed(2);
-  document.getElementById("totalDescuentos").textContent = totalDescuentos.toFixed(2);
-  document.getElementById("liquido").textContent = liquido.toFixed(2);
-}
-</script>
+    <?php
+      unset($_SESSION['ultimo_id']);
+      endif;
+    endif;
+    ?>
+  </div>
+</main>
 
 
-      </main>
 
       <!--end::App Main-->
       <!--begin::Footer-->

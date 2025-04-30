@@ -359,7 +359,9 @@ if (isset($_GET['cliente_id'])) {
             <th>Q<?= number_format($total, 2) ?></th>
           </tr>
         </tfoot>
+        
       </table>
+      
 
       <form method="POST" action="guardar_factura.php">
         <div class="text-end">
@@ -368,6 +370,10 @@ if (isset($_GET['cliente_id'])) {
       </form>
     <?php endif; ?>
   </div>
+  <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>" class="btn btn-outline-danger mt-3" target="_blank">
+  Exportar como PDF
+</a>
+
 </main>
 
     
