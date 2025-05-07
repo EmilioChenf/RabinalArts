@@ -28,7 +28,7 @@ if ($venta_id) {
     }
 }
 
-// También podemos mostrar la factura actual almacenada en sesión
+// Factura actual de la sesión
 $factura_actual = $_SESSION['factura_detalle'] ?? [];
 
 ob_start();
@@ -67,9 +67,19 @@ ob_start();
     <?php endforeach; ?>
     </tbody>
     <tfoot>
+        <?php $iva_ultima = $total_ultima * 0.12; ?>
+        <?php $total_con_iva_ultima = $total_ultima + $iva_ultima; ?>
         <tr>
-            <td colspan="3" align="right"><strong>Total:</strong></td>
-            <td>Q<?= number_format($total_ultima, 2) ?></td>
+            <td colspan="3" align="right"><strong>Subtotal:</strong></td>
+            <td><strong>Q<?= number_format($total_ultima, 2) ?></strong></td>
+        </tr>
+        <tr>
+            <td colspan="3" align="right"><strong>IVA (12%):</strong></td>
+            <td><strong>Q<?= number_format($iva_ultima, 2) ?></strong></td>
+        </tr>
+        <tr>
+            <td colspan="3" align="right"><strong>Total con IVA:</strong></td>
+            <td><strong>Q<?= number_format($total_con_iva_ultima, 2) ?></strong></td>
         </tr>
     </tfoot>
 </table>
@@ -99,9 +109,19 @@ ob_start();
     <?php endforeach; ?>
     </tbody>
     <tfoot>
+        <?php $iva = $total * 0.12; ?>
+        <?php $total_con_iva = $total + $iva; ?>
         <tr>
-            <td colspan="3" align="right"><strong>Total:</strong></td>
-            <td>Q<?= number_format($total, 2) ?></td>
+            <td colspan="3" align="right"><strong>Subtotal:</strong></td>
+            <td><strong>Q<?= number_format($total, 2) ?></strong></td>
+        </tr>
+        <tr>
+            <td colspan="3" align="right"><strong>IVA (12%):</strong></td>
+            <td><strong>Q<?= number_format($iva, 2) ?></strong></td>
+        </tr>
+        <tr>
+            <td colspan="3" align="right"><strong>Total con IVA:</strong></td>
+            <td><strong>Q<?= number_format($total_con_iva, 2) ?></strong></td>
         </tr>
     </tfoot>
 </table>

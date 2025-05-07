@@ -285,23 +285,42 @@ if (isset($_GET['cliente_id'])) {
           </tr>
         </thead>
         <tbody>
-          <?php $total_ultima = 0; ?>
-          <?php while ($row = $detalles->fetch_assoc()): ?>
-            <?php $total_ultima += $row['total']; ?>
-            <tr>
-              <td><?= htmlspecialchars($row['nombre']) ?></td>
-              <td><?= $row['cantidad'] ?></td>
-              <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
-              <td>$<?= number_format($row['total'], 2) ?></td>
-            </tr>
-          <?php endwhile; ?>
+        <?php
+$total_ultima = 0;
+$rows = []; // Guardamos las filas para usarlas dos veces
+while ($row = $detalles->fetch_assoc()) {
+    $rows[] = $row;
+    $total_ultima += $row['total'];
+}
+$iva_ultima = $total_ultima * 0.12;
+$total_con_iva_ultima = $total_ultima + $iva_ultima;
+?>
+
+<?php foreach ($rows as $row): ?>
+<tr>
+  <td><?= htmlspecialchars($row['nombre']) ?></td>
+  <td><?= $row['cantidad'] ?></td>
+  <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
+  <td>$<?= number_format($row['total'], 2) ?></td>
+</tr>
+<?php endforeach; ?>
+
         </tbody>
         <tfoot>
-          <tr>
-            <th colspan="3" class="text-end">Total:</th>
-            <th>$<?= number_format($total_ultima, 2) ?></th>
-          </tr>
-        </tfoot>
+  <tr>
+    <th colspan="3" class="text-end">Subtotal:</th>
+    <th>$<?= number_format($total_ultima, 2) ?></th>
+  </tr>
+  <tr>
+    <th colspan="3" class="text-end">IVA (12%):</th>
+    <th>$<?= number_format($iva_ultima, 2) ?></th>
+  </tr>
+  <tr>
+    <th colspan="3" class="text-end">Total con IVA:</th>
+    <th>$<?= number_format($total_con_iva_ultima, 2) ?></th>
+  </tr>
+</tfoot>
+
       </table>
     </div>
     <?php endif; ?>
@@ -342,23 +361,40 @@ if (isset($_GET['cliente_id'])) {
           </tr>
         </thead>
         <tbody>
-          <?php $total = 0; ?>
-          <?php foreach ($_SESSION['factura_detalle'] as $item): ?>
-            <?php $total += $item['subtotal']; ?>
-            <tr>
-              <td><?= htmlspecialchars($item['nombre']) ?></td>
-              <td><?= $item['cantidad'] ?></td>
-              <td>Q<?= number_format($item['precio'], 2) ?></td>
-              <td>Q<?= number_format($item['subtotal'], 2) ?></td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-        <tfoot>
-          <tr>
-            <th colspan="3" class="text-end">Total:</th>
-            <th>Q<?= number_format($total, 2) ?></th>
-          </tr>
-        </tfoot>
+  <?php 
+    $total = 0;
+    foreach ($_SESSION['factura_detalle'] as $item): 
+      $total += $item['subtotal'];
+  ?>
+    <tr>
+      <td><?= htmlspecialchars($item['nombre']) ?></td>
+      <td><?= $item['cantidad'] ?></td>
+      <td>Q<?= number_format($item['precio'], 2) ?></td>
+      <td>Q<?= number_format($item['subtotal'], 2) ?></td>
+    </tr>
+  <?php endforeach; 
+
+    // Calcular IVA y total con IVA aquí
+    $iva = $total * 0.12;
+    $total_final = $total + $iva;
+  ?>
+</tbody>
+
+<tfoot>
+  <tr>
+    <th colspan="3" class="text-end">Subtotal:</th>
+    <th>Q<?= number_format($total, 2) ?></th>
+  </tr>
+  <tr>
+    <th colspan="3" class="text-end">IVA (12%):</th>
+    <th>Q<?= number_format($iva, 2) ?></th>
+  </tr>
+  <tr>
+    <th colspan="3" class="text-end">Total con IVA:</th>
+    <th>Q<?= number_format($total_final, 2) ?></th>
+  </tr>
+</tfoot>
+
         
       </table>
       

@@ -190,12 +190,6 @@
 
       
 
-
-
-
-  <!-- AQUI PARA ARRIBA ES LO QUE QUIERO AMÉN AJSDAJSDJASJD    -->
-
-      <!--begin::App Main-->
       <main class="app-main">
     <div class="app-content-header p-4">
       <div class="container-fluid">
@@ -212,13 +206,13 @@
           <div class="card-body">
             <table class="table table-bordered">
               <thead>
-                <tr><th>Categoría</th><th>Total ingresos (Q)</th></tr>
+                <tr><th>Categoría</th><th>Total ingresos ($)</th></tr>
               </thead>
               <tbody>
                 <?php
                   $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
                   while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>Q " . number_format($fila['total'], 2) . "</td></tr>";
+                    echo "<tr><td>{$fila['categoria']}</td><td>$ " . number_format($fila['total'], 2) . "</td></tr>";
                   }
                 ?>
               </tbody>
@@ -232,7 +226,7 @@
           <div class="card-body">
             <table class="table table-bordered">
               <thead>
-                <tr><th>Mes</th><th>Total ingresos (Q)</th></tr>
+                <tr><th>Mes</th><th>Total ingresos ($)</th></tr>
               </thead>
               <tbody>
                 <?php
@@ -249,6 +243,33 @@
           </div>
         </div>
 
+        <!-- Detalle por producto (nuevo) -->
+        <div class="card mb-4">
+          <div class="card-header"><strong>Detalle por producto</strong></div>
+          <div class="card-body">
+            <table class="table table-bordered">
+              <thead>
+                <tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Total ($)</th></tr>
+              </thead>
+              <tbody>
+                <?php
+                  $detalle = mysqli_query($conn, "SELECT nombre, categoria, precio, stock FROM productos");
+                  while($fila = mysqli_fetch_assoc($detalle)) {
+                    $total = $fila['precio'] * $fila['stock'];
+                    echo "<tr>
+                      <td>{$fila['nombre']}</td>
+                      <td>{$fila['categoria']}</td>
+                      <td>$ " . number_format($fila['precio'], 2) . "</td>
+                      <td>{$fila['stock']}</td>
+                      <td>$ " . number_format($total, 2) . "</td>
+                    </tr>";
+                  }
+                ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Balance General -->
         <div class="card mb-4">
           <div class="card-header"><strong>Balance general</strong></div>
@@ -257,28 +278,31 @@
               <li><strong>Activos:</strong> Inventario disponible = 
                 <?php
                   $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "Q " . number_format($activos['total'], 2);
+                  echo "$ " . number_format($activos['total'], 2);
                 ?>
               </li>
-              <li><strong>Pasivos:</strong> (simulados) = Q 5,000.00</li>
+              <li><strong>Pasivos:</strong> (simulados) = $ 5,000.00</li>
               <li><strong>Capital:</strong> 
                 <?php
                   $capital = $activos['total'] - 5000;
-                  echo "Q " . number_format($capital, 2);
+                  echo "$ " . number_format($capital, 2);
                 ?>
               </li>
             </ul>
           </div>
         </div>
+
         <a href="exportar_pdf.php" class="btn btn-danger mt-3" target="_blank">
   <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
 </a>
+
 
       </div>
     </div>
   </main>
 
 
+  
 <!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
       <!--end::App Main-->
       <!--begin::Footer-->
