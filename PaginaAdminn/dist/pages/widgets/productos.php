@@ -168,6 +168,13 @@
                     </a>
                   </li>
 
+                    <li class="nav-item">
+                    <a href="../widgets/empleados.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de empleados</p>
+                    </a>
+                  </li>
+
 
 
 

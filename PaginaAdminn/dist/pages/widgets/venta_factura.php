@@ -215,7 +215,12 @@ if (isset($_GET['cliente_id'])) {
 
 
 
-
+  <li class="nav-item">
+                    <a href="../widgets/empleados.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de empleados</p>
+                    </a>
+                  </li>
                   
 
 
@@ -310,7 +315,7 @@ $total_con_iva_ultima = $total_ultima + $iva_ultima;
   <tr>
     <th colspan="3" class="text-end">Subtotal:</th>
     <th>$<?= number_format($total_ultima, 2) ?></th>
-  </tr>
+  </tr> 
   <tr>
     <th colspan="3" class="text-end">IVA (12%):</th>
     <th>$<?= number_format($iva_ultima, 2) ?></th>

@@ -21,7 +21,7 @@ class Carrito {
         let index = productosLS.findIndex(p => p.id === infoProducto.id);
 
         if (index !== -1) {
-            productosLS[index].cantidad += cantidad;
+            productosLS[index].cantidad = cantidad;
         } else {
             productosLS.push(infoProducto);
         }
@@ -63,29 +63,10 @@ document.addEventListener('DOMContentLoaded', function () {
     carrito.leerLocalStorageCompra();
 });
 
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('agregar-carrito')) {
-        carrito.comprarProducto(e);
-    }
-    if (e.target && e.target.classList.contains('btn-incrementar')) {
-        let input = e.target.previousElementSibling;
-        if (input) {
-            input.value = parseInt(input.value) + 1;
-            actualizarCantidad(input);
-        }
-    } else if (e.target && e.target.classList.contains('btn-decrementar')) {
-        let input = e.target.nextElementSibling;
-        if (input && parseInt(input.value) > 1) {
-            input.value = parseInt(input.value) - 1;
-            actualizarCantidad(input);
-        }
-    } else if (e.target && e.target.classList.contains('borrar-producto')) {
-        let id = e.target.getAttribute('data-id');
-        if (id) {
-            eliminarProducto(id, e.target);
-        }
-    }
-});
+// ✅ Ya no volvemos a agregar el evento 'click' para .agregar-carrito aquí
+// para evitar duplicidad si ya se hace desde productos.php
+
+// Mantener funciones de incremento/decremento/cálculo total
 
 function eliminarProducto(id, btn) {
     Swal.fire({
@@ -165,38 +146,24 @@ Carrito.prototype.leerLocalStorageCompra = function () {
         return;
     }
 
-    fetch("php/obtener_precios.php", {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: productosLS.map(p => p.id) })
-    })
-    .then(res => res.json())
-    .then(preciosActualizados => {
-        let total = 0;
-
-        productosLS.forEach(producto => {
-            let precioActual = parseFloat(preciosActualizados[producto.id]) || producto.precio;
-            let subtotal = precioActual * producto.cantidad;
-            total += subtotal;
-
-            const row = document.createElement('tr');
-            row.dataset.id = producto.id;
-            row.innerHTML = `
-                <td><img src="${producto.imagen}" width=100></td>
-                <td>${producto.titulo}</td>
-                <td>$${precioActual.toFixed(2)}</td>
-                <td>
-                    <button class="btn-decrementar">-</button>
-                    <input type="number" class="cantidad-carrito" value="${producto.cantidad}" min="1">
-                    <button class="btn-incrementar">+</button>
-                </td>
-                <td>$<span class="subtotal">${subtotal.toFixed(2)}</span></td>
-                <td><button class="borrar-producto" data-id="${producto.id}">🗑️</button></td>
-            `;
-            listaCompra.appendChild(row);
-        });
-
-        document.getElementById('subtotal').textContent = "$" + total.toFixed(2);
-        document.getElementById('total').value = "$" + total.toFixed(2);
+    productosLS.forEach(producto => {
+        let subtotal = producto.precio * producto.cantidad;
+        const row = document.createElement('tr');
+        row.dataset.id = producto.id;
+        row.innerHTML = `
+            <td><img src="${producto.imagen}" width=100></td>
+            <td>${producto.titulo}</td>
+            <td>$${producto.precio.toFixed(2)}</td>
+            <td>
+                <button class="btn-decrementar">-</button>
+                <input type="number" class="cantidad-carrito" value="${producto.cantidad}" min="1">
+                <button class="btn-incrementar">+</button>
+            </td>
+            <td>$<span class="subtotal">${subtotal.toFixed(2)}</span></td>
+            <td><button class="borrar-producto" data-id="${producto.id}">🗑️</button></td>
+        `;
+        listaCompra.appendChild(row);
     });
+
+    calcularTotal();
 };

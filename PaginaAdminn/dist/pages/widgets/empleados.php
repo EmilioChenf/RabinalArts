@@ -1,4 +1,27 @@
-<?php include 'conexion.php'; ?>
+<?php include 'conexion.php';
+// Procesar acciones CRUD
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['agregar'])) {
+        $stmt = $conn->prepare("INSERT INTO empleados (nombre, puesto, telefono, email, salario, fecha_contratacion) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssis", $_POST['nombre'], $_POST['puesto'], $_POST['telefono'], $_POST['email'], $_POST['salario'], $_POST['fecha_contratacion']);
+        $stmt->execute();
+    }
+
+    if (isset($_POST['editar'])) {
+        $stmt = $conn->prepare("UPDATE empleados SET nombre=?, puesto=?, telefono=?, email=?, salario=?, fecha_contratacion=? WHERE id=?");
+        $stmt->bind_param("ssssisi", $_POST['nombre'], $_POST['puesto'], $_POST['telefono'], $_POST['email'], $_POST['salario'], $_POST['fecha_contratacion'], $_POST['id']);
+        $stmt->execute();
+    }
+
+    if (isset($_POST['eliminar'])) {
+        $stmt = $conn->prepare("DELETE FROM empleados WHERE id = ?");
+        $stmt->bind_param("i", $_POST['id']);
+        $stmt->execute();
+    }
+}
+
+$empleados = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
+?>
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -200,192 +223,83 @@
       
 
       <main class="app-main">
-    <div class="app-content-header p-4">
-      <div class="container-fluid">
-        <h3 class="mb-0">Sistema Contable</h3>
-      </div>
-    </div>
 
-    <div class="app-content p-4">
-      <div class="container-fluid">
+<div class="container-fluid p-4">
+    <h2>Gestión de Empleados</h2>
 
-        <!-- Resumen por Categoría -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Resumen de ingresos por categoría</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Categoría</th><th>Total ingresos ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
-                  while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>$ " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
+    <!-- Formulario para agregar empleado -->
+    <form method="POST" class="row g-3 mb-4">
+        <h5>Agregar nuevo empleado</h5>
+        <input type="hidden" name="agregar" value="1">
+        <div class="col-md-3">
+            <input type="text" name="nombre" class="form-control" placeholder="Nombre" required>
         </div>
-
-          <!-- Ganancias por Producto -->
-    <div class="card mb-4">
-        <div class="card-header">Ganancias por producto (ventas)</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead><tr><th>Producto</th><th>Unidades Vendidas</th><th>Precio Unitario</th><th>Ganancia ($)</th></tr></thead>
-                <tbody>
-                <?php
-                $res = mysqli_query($conn, "SELECT p.nombre, SUM(d.cantidad) AS cantidad_vendida, d.precio_unitario, SUM(d.total) AS total_ganancia FROM detalle_venta d JOIN productos p ON d.producto_id = p.id GROUP BY d.producto_id");
-                while($row = mysqli_fetch_assoc($res)) {
-                    echo "<tr><td>{$row['nombre']}</td><td>{$row['cantidad_vendida']}</td><td>$ ".number_format($row['precio_unitario'], 2)."</td><td>$ ".number_format($row['total_ganancia'], 2)."</td></tr>";
-                }
-                ?>
-                </tbody>
-            </table>
+        <div class="col-md-3">
+            <input type="text" name="puesto" class="form-control" placeholder="Puesto" required>
         </div>
-    </div>
-
-
- <!-- Ganancias del mes actual -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Ganancias del mes actual</strong></div>
-    <div class="card-body">
-        <?php
-        $mesActual = date('Y-m'); // Formato YYYY-MM
-        $query = "SELECT SUM(precio * stock) AS ganancias_mes 
-                  FROM productos 
-                  WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $mesActual);
-        $stmt->execute();
-        $resultado = $stmt->get_result();
-        $gananciasMes = $resultado->fetch_assoc();
-        $ganancia = $gananciasMes['ganancias_mes'] ?? 0;
-        ?>
-        <h4 class="text-success">Q <?= number_format($ganancia, 2) ?></h4>
-    </div>
-</div>
-
-<!-- Reporte filtrable por calendario -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Reporte de ingresos por fecha</strong></div>
-    <div class="card-body">
-        <form method="GET" class="mb-3">
-            <label for="fecha">Selecciona una fecha:</label>
-            <input type="date" name="fecha" id="fecha" class="form-control" value="<?php echo isset($_GET['fecha']) ? $_GET['fecha'] : ''; ?>" required>
-            <button type="submit" class="btn btn-primary mt-2">Ver reporte</button>
-        </form>
-
-        <?php
-        if (isset($_GET['fecha'])) {
-            $fechaSeleccionada = $_GET['fecha'];
-            $dia = $fechaSeleccionada;
-            $mes = date('Y-m', strtotime($fechaSeleccionada));
-            $anio = date('Y', strtotime($fechaSeleccionada));
-
-            // Reporte diario
-            $diario = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE(fecha_creacion) = '$dia'"));
-
-            // Reporte mensual
-            $mensual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = '$mes'"));
-
-            // Reporte anual
-            $anual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE YEAR(fecha_creacion) = '$anio'"));
-
-            echo "<h5>Resultados para: " . date('d-m-Y', strtotime($fechaSeleccionada)) . "</h5>";
-
-            echo "<table class='table table-bordered'>
-                <thead><tr><th>Periodo</th><th>Total Ingresos ($)</th></tr></thead>
-                <tbody>
-                    <tr><td>Dia seleccionado ($dia)</td><td>$ " . number_format($diario['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Mes actual ($mes)</td><td>$ " . number_format($mensual['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Año actual ($anio)</td><td>$ " . number_format($anual['total'] ?? 0, 2) . "</td></tr>
-                </tbody>
-            </table>";
-        }
-        ?>
-    </div>
-</div>
-
-
-        <!-- Detalle por producto (nuevo) -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Detalle por producto</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Total ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $detalle = mysqli_query($conn, "SELECT nombre, categoria, precio, stock FROM productos");
-                  while($fila = mysqli_fetch_assoc($detalle)) {
-                    $total = $fila['precio'] * $fila['stock'];
-                    echo "<tr>
-                      <td>{$fila['nombre']}</td>
-                      <td>{$fila['categoria']}</td>
-                      <td>$ " . number_format($fila['precio'], 2) . "</td>
-                      <td>{$fila['stock']}</td>
-                      <td>$ " . number_format($total, 2) . "</td>
-                    </tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
+        <div class="col-md-2">
+            <input type="text" name="telefono" class="form-control" placeholder="Teléfono">
         </div>
-
-        <!-- Balance General -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Balance general</strong></div>
-          <div class="card-body">
-            <ul>
-              <li><strong>Activos:</strong> Inventario disponible = 
-                <?php
-                  $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "$ " . number_format($activos['total'], 2);
-                ?>
-              </li>
-              <li><strong>Pasivos:</strong> (simulados) = $ 5,000.00</li>
-              <li><strong>Capital:</strong> 
-                <?php
-                  $capital = $activos['total'] - 5000;
-                  echo "$ " . number_format($capital, 2);
-                ?>
-              </li>
-            </ul>
-          </div>
+        <div class="col-md-2">
+            <input type="email" name="email" class="form-control" placeholder="Email">
         </div>
-
-<!-- Exportar PDF por fecha -->
-<div class="card mb-4">
-  <div class="card-header"><strong>Exportar Reporte Contable (PDF)</strong></div>
-  <div class="card-body">
-    <form action="exportar_pdf.php" method="get" class="row g-3">
-      <div class="col-md-4">
-        <label for="fecha" class="form-label">Selecciona una fecha</label>
-        <input type="date" name="fecha" id="fecha" class="form-control">
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <button type="submit" class="btn btn-danger">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-        </button>
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <a href="exportar_pdf.php" target="_blank" class="btn btn-secondary">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar TODO (sin filtrar)
-        </a>
-      </div>
+        <div class="col-md-1">
+            <input type="number" step="0.01" name="salario" class="form-control" placeholder="Salario" required>
+        </div>
+        <div class="col-md-1">
+            <input type="date" name="fecha_contratacion" class="form-control" required>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-success">Agregar</button>
+        </div>
     </form>
-  </div>
+
+    <!-- Tabla empleados -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th><th>Nombre</th><th>Puesto</th><th>Teléfono</th><th>Email</th><th>Salario</th><th>Fecha</th><th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php while($emp = mysqli_fetch_assoc($empleados)): ?>
+            <tr>
+                <td><?= $emp['id'] ?></td>
+                <td><?= $emp['nombre'] ?></td>
+                <td><?= $emp['puesto'] ?></td>
+                <td><?= $emp['telefono'] ?></td>
+                <td><?= $emp['email'] ?></td>
+                <td>$<?= number_format($emp['salario'], 2) ?></td>
+                <td><?= $emp['fecha_contratacion'] ?></td>
+                <td>
+                    <!-- Editar -->
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="editar" value="1">
+                        <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                        <input type="hidden" name="nombre" value="<?= $emp['nombre'] ?>">
+                        <input type="hidden" name="puesto" value="<?= $emp['puesto'] ?>">
+                        <input type="hidden" name="telefono" value="<?= $emp['telefono'] ?>">
+                        <input type="hidden" name="email" value="<?= $emp['email'] ?>">
+                        <input type="hidden" name="salario" value="<?= $emp['salario'] ?>">
+                        <input type="hidden" name="fecha_contratacion" value="<?= $emp['fecha_contratacion'] ?>">
+                        <button type="submit" class="btn btn-warning btn-sm">Editar</button>
+                    </form>
+
+                    <!-- Eliminar -->
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="eliminar" value="1">
+                        <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                        <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            <?php endwhile; ?>
+        </tbody>
+    </table>
 </div>
 
 
 
-      </div>
-    </div>
   </main>
 
 

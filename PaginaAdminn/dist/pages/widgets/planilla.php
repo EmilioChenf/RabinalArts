@@ -175,6 +175,14 @@ include 'conexion.php';
                   </li>
 
 
+                    <li class="nav-item">
+                    <a href="../widgets/empleados.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de empleados</p>
+                    </a>
+                  </li>
+
+
 
                 </ul>
               </li>
@@ -194,54 +202,81 @@ include 'conexion.php';
   <div class="container">
     <h3 class="mb-4">Generar Planilla</h3>
 
-    <!-- Formulario -->
-    <form action="guardar_planilla.php" method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
-      <div class="col-md-6">
-        <label class="form-label">Nombre completo</label>
-        <input type="text" name="nombre" required class="form-control">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Puesto</label>
-        <input type="text" name="puesto" required class="form-control">
-      </div>
+<!-- Formulario -->
+<form action="guardar_planilla.php" method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
+    <div class="col-md-6">
+        <label class="form-label">Empleado</label>
+        <select id="empleado" name="nombre" class="form-select" required>
+            <option value="">Selecciona un empleado</option>
+            <?php
+            $empleados = mysqli_query($conn, "SELECT id, nombre, puesto, salario FROM empleados");
+            while ($emp = mysqli_fetch_assoc($empleados)) {
+                echo "<option value='" . htmlspecialchars($emp['nombre']) . "' 
+                        data-puesto='" . htmlspecialchars($emp['puesto']) . "' 
+                        data-salario='" . htmlspecialchars($emp['salario']) . "'>" . htmlspecialchars($emp['nombre']) . "</option>";
+            }
+            ?>
+        </select>
+    </div>
 
-      <div class="col-md-4">
+    <div class="col-md-6">
+        <label class="form-label">Puesto</label>
+        <input type="text" id="puesto" name="puesto" required class="form-control">
+    </div>
+
+    <div class="col-md-4">
         <label class="form-label">Sueldo base (Q)</label>
-        <input type="number" step="0.01" name="sueldo_base" required class="form-control">
-      </div>
-      <div class="col-md-4">
+        <input type="number" step="0.01" id="sueldo_base" name="sueldo_base" required class="form-control">
+    </div>
+    <div class="col-md-4">
         <label class="form-label">Horas extras</label>
         <input type="number" name="horas_extras" required class="form-control">
-      </div>
-      <div class="col-md-4">
+    </div>
+    <div class="col-md-4">
         <label class="form-label">Comisiones (Q)</label>
         <input type="number" step="0.01" name="comisiones" class="form-control">
-      </div>
+    </div>
 
-      <div class="col-md-4">
+    <div class="col-md-4">
         <label class="form-label">Bonificación (Q)</label>
         <input type="number" step="0.01" name="bonificacion" class="form-control">
-      </div>
-      <div class="col-md-4">
+    </div>
+    <div class="col-md-4">
         <label class="form-label">Anticipos (Q)</label>
         <input type="number" step="0.01" name="anticipos" class="form-control">
-      </div>
-      <div class="col-md-4">
+    </div>
+    <div class="col-md-4">
         <label class="form-label">Descuentos judiciales (Q)</label>
         <input type="number" step="0.01" name="descuentos_judiciales" class="form-control">
-      </div>
+    </div>
 
-      <div class="col-md-12">
+    <div class="col-md-12">
         <label class="form-label">Otros descuentos (Q)</label>
         <input type="number" step="0.01" name="otros_descuentos" class="form-control">
-      </div>
+    </div>
 
-      <div class="col-12 text-end">
+    <div class="col-12 text-end">
         <button type="submit" class="btn btn-primary">Generar Planilla</button>
-      </div>
-      <a href="exportar_planilla_pdf.php" class="btn btn-danger mt-3">Exportar PDF</a>
+    </div>
+    <a href="exportar_planilla_pdf.php" class="btn btn-danger mt-3">Exportar PDF</a>
+</form>
 
-    </form>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const empleadoSelect = document.getElementById('empleado');
+    const puestoInput = document.getElementById('puesto');
+    const sueldoInput = document.getElementById('sueldo_base');
+
+    empleadoSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const puesto = selectedOption.getAttribute('data-puesto');
+        const salario = selectedOption.getAttribute('data-salario');
+
+        puestoInput.value = puesto ? puesto : '';
+        sueldoInput.value = salario ? salario : '';
+    });
+});
+</script>
 
     <!-- Aquí abajo se mostrará la planilla generada con SweetAlert -->
     <?php if (isset($_GET['success']) && $_GET['success'] == 1): ?>

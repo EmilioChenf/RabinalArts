@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
       let productos = JSON.parse(localStorage.getItem('productos')) || [];
       const index = productos.findIndex(p => p.id === infoProducto.id);
       if (index !== -1) {
-        productos[index].cantidad += cantidad;
+        productos[index].cantidad = cantidad; 
       } else {
         productos.push(infoProducto);
       }
@@ -130,13 +130,27 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList.contains('btn-incrementar')) {
+        let input = e.target.previousElementSibling;
+        if (input && input.classList.contains('cantidad-input')) {
+            input.value = parseInt(input.value) + 1;
+        }
+    } else if (e.target && e.target.classList.contains('btn-decrementar')) {
+        let input = e.target.nextElementSibling;
+        if (input && input.classList.contains('cantidad-input') && parseInt(input.value) > 1) {
+            input.value = parseInt(input.value) - 1;
+        }
+    }
+});
+
 </script>
 
 
 <script src="https://kit.fontawesome.com/a076d05399.js"></script>
 <script src="https://code.jquery.com/jquery-3.4.1.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
-<script src="assets/js/carrito.js"></script>
 <script src="assets/js/scripts.js"></script>
 <script src="assets/js/pedido.js"></script>
 <script src="assets/js/compra.js"></script>

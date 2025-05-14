@@ -187,7 +187,12 @@ if (isset($_POST['guardar'])) {
                   </li>
 
 
-
+  <li class="nav-item">
+                    <a href="../widgets/empleados.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de empleados</p>
+                    </a>
+                  </li>
 
                   
                 </ul>
@@ -324,7 +329,7 @@ if (isset($_POST['guardar'])) {
     <script src="../../../dist/js/adminlte.js"></script>
     <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
     <script>
-      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';
+      const SELECTOR_SIDEBAR_WRAPPER = '.sidebar-wrapper';            
       const Default = {
         scrollbarTheme: 'os-theme-light',
         scrollbarAutoHide: 'leave',

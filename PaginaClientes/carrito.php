@@ -90,7 +90,7 @@ document.cookie = "carrito=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-document.getElementById("guardar-datos").addEventListener("submit", function(event) {
+    document.getElementById("guardar-datos").addEventListener("submit", function(event) {
     event.preventDefault(); // Evita la recarga de la página
 
     var formData = new FormData(this);
@@ -131,58 +131,36 @@ document.getElementById("guardar-datos").addEventListener("submit", function(eve
 });
 </script>
 
-    <div id="carrito" class="contenido">
-        <table class="tabla" id="lista-compra">
-            <thead>
-                <tr>
-                    <th>Imagen</th>
-                    <th>Nombre</th>
-                    <th>Precio</th>
-                    <th>Cantidad</th>
-                    <th>Sub Total</th>
-                    <th>Eliminar</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($productosEnCarrito as $producto):
-                $id = intval($producto['id']);
-                $cantidad = intval($producto['cantidad']);
+<div id="carrito" class="contenido">
+    <table class="tabla" id="lista-compra">
+      <thead>
+        <tr>
+          <th>Imagen</th>
+          <th>Nombre</th>
+          <th>Precio</th>
+          <th>Cantidad</th>
+          <th>Sub Total</th>
+          <th>Eliminar</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-carrito">
+        <!-- Se llena dinámicamente desde JS -->
+      </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="4">TOTAL :</th>
+          <th colspan="2"><input type="text" id="total" readonly></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
 
-                $query = $conn->prepare("SELECT nombre, precio, imagen FROM productos WHERE id = ?");
-                $query->bind_param("i", $id);
-                $query->execute();
-                $result = $query->get_result();
-
-                if ($row = $result->fetch_assoc()):
-                    $nombre = htmlspecialchars($row['nombre']);
-                    $precio = floatval($row['precio']);
-                    $imagen = htmlspecialchars($row['imagen']);
-                    $subtotal = $precio * $cantidad;
-                    $total += $subtotal;
-            ?>
-                <tr>
-                    <td><img src="../PaginaAdminn/dist/pages/widgets/uploads/<?= $imagen ?>" width="100"></td>
-                    <td><?= $nombre ?></td>
-                    <td>$<?= number_format($precio, 2) ?></td>
-                    <td><?= $cantidad ?></td>
-                    <td>$<?= number_format($subtotal, 2) ?></td>
-                    <td>(visual)</td>
-                </tr>
-            <?php endif; endforeach; ?>
-            </tbody>
-            <tr>
-                <th colspan="4">TOTAL :</th>
-                <th colspan="2"><input type="text" id="total" readonly value="$<?= number_format($total, 2) ?>"></th>
-            </tr>
-        </table>
+  <form action="php/procesar_compra.php" method="POST">
+    <div class="botones-envio">
+      <a href="productos.php" class="button">Seguir comprando</a>
+      <button type="submit" class="button">Realizar compra</button>
     </div>
-
-    <form action="php/procesar_compra.php" method="POST">
-        <div class="botones-envio">
-            <a href="productos.php" class="button">Seguir comprando</a>
-            <button type="submit" class="button">Realizar compra</button>
-        </div>
-    </form>
+  </form>
 </div>
 </main>
 
@@ -209,7 +187,59 @@ document.getElementById("guardar-datos").addEventListener("submit", function(eve
   </div>
 </footer>
 
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="assets/js/carrito.js"></script>
+<script>
+function renderizarCarrito() {
+  const tabla = document.getElementById('tabla-carrito');
+  const productos = JSON.parse(localStorage.getItem('productos')) || [];
+  tabla.innerHTML = '';
+  let total = 0;
+
+  productos.forEach((producto, index) => {
+    const subtotal = producto.precio * producto.cantidad;
+    total += subtotal;
+
+    tabla.innerHTML += `
+      <tr data-index="${index}">
+        <td><img src="${producto.imagen}" width="80"></td>
+        <td>${producto.titulo}</td>
+        <td>$${producto.precio.toFixed(2)}</td>
+        <td>
+          <button class="btn-decrementar">-</button>
+          <input type="number" class="cantidad-carrito" value="${producto.cantidad}" min="1">
+          <button class="btn-incrementar">+</button>
+        </td>
+        <td>$${subtotal.toFixed(2)}</td>
+        <td><button class="btn-eliminar">Eliminar</button></td>
+      </tr>
+    `;
+  });
+
+  document.getElementById('total').value = `$${total.toFixed(2)}`;
+  document.cookie = "carrito=" + encodeURIComponent(JSON.stringify(productos)) + "; path=/;";
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderizarCarrito();
+
+  document.getElementById('tabla-carrito').addEventListener('click', e => {
+    const row = e.target.closest('tr');
+    const index = row.dataset.index;
+    let productos = JSON.parse(localStorage.getItem('productos')) || [];
+
+    if (e.target.classList.contains('btn-incrementar')) {
+      productos[index].cantidad++;
+    } else if (e.target.classList.contains('btn-decrementar') && productos[index].cantidad > 1) {
+      productos[index].cantidad--;
+    } else if (e.target.classList.contains('btn-eliminar')) {
+      productos.splice(index, 1);
+    }
+
+    localStorage.setItem('productos', JSON.stringify(productos));
+    renderizarCarrito();
+  });
+});
+</script>
 </body>
 </html>
