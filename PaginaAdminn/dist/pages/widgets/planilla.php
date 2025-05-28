@@ -183,6 +183,14 @@ include 'conexion.php';
                   </li>
 
 
+                                    <li class="nav-item">
+                    <a href="../widgets/gestion_de_cuentas.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de cuentas</p>
+                    </a>
+                  </li>
+
+
 
                 </ul>
               </li>
@@ -261,6 +269,8 @@ include 'conexion.php';
     <a href="exportar_planilla_pdf.php" class="btn btn-danger mt-3">Exportar PDF</a>
 </form>
 
+
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const empleadoSelect = document.getElementById('empleado');
@@ -316,6 +326,45 @@ document.addEventListener("DOMContentLoaded", () => {
       endif;
     endif;
     ?>
+    <div class="container">
+    <h3 class="mb-4">Lista de Planillas Generadas</h3>
+    <table class="table table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th>#</th>
+          <th>Empleado</th>
+          <th>Puesto</th>
+          <th>Fecha</th>
+          <th>Líquido a recibir</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php
+        $query = "SELECT id, nombre, puesto, fecha_registro, liquido_recibir 
+                  FROM planilla 
+                  ORDER BY fecha_registro DESC";
+        $res = mysqli_query($conn, $query);
+        $i = 1;
+        while($row = mysqli_fetch_assoc($res)):
+      ?>
+        <tr>
+          <td><?= $i++ ?></td>
+          <td><?= htmlspecialchars($row['nombre']) ?></td>
+          <td><?= htmlspecialchars($row['puesto']) ?></td>
+          <td><?= htmlspecialchars($row['fecha_registro']) ?></td>
+          <td>Q <?= number_format($row['liquido_recibir'],2) ?></td>
+          <td>
+            <a href="ver_planilla.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-info">Ver</a>
+            <a href="exportar_planilla_pdf.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-sm btn-danger">
+              PDF
+            </a>
+          </td>
+        </tr>
+      <?php endwhile; ?>
+      </tbody>
+    </table>
+  </div>
   </div>
 </main>
 

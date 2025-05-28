@@ -194,6 +194,14 @@ if (isset($_POST['guardar'])) {
                     </a>
                   </li>
 
+
+                                    <li class="nav-item">
+                    <a href="../widgets/gestion_de_cuentas.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Gestion de cuentas</p>
+                    </a>
+                  </li>
+
                   
                 </ul>
               </li>

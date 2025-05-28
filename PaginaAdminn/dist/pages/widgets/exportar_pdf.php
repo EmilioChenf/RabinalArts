@@ -138,7 +138,7 @@ $htmlContent = $html;
 ob_end_clean();
 
 // DOMPDF
-$options = new Options();
+$options = new Options();   
 $options->set('isHtml5ParserEnabled', true);
 $dompdf = new Dompdf($options);
 $dompdf->loadHtml($htmlContent);

@@ -1,55 +1,7 @@
+
 <?php
+// gestion_de_cuentas.php
 include 'conexion.php';
-
-if (isset($_POST['guardar'])) {
-  $query = "INSERT INTO proveedores (nombre, direccion, telefono, correo, nit, categoria, condiciones_pago, estado, descripcion) 
-            VALUES (
-              '{$_POST['nombre']}', '{$_POST['direccion']}', '{$_POST['telefono']}', '{$_POST['correo']}',
-              '{$_POST['nit']}', '{$_POST['categoria']}', '{$_POST['condiciones_pago']}',
-              '{$_POST['estado']}', '{$_POST['descripcion']}')";
-  mysqli_query($conn, $query);
-  header('Location: proveedores.php');
-  exit();
-}
-
-if (isset($_POST['actualizar'])) {
-  $query = "UPDATE proveedores SET 
-            nombre='{$_POST['nombre']}', direccion='{$_POST['direccion']}', telefono='{$_POST['telefono']}',
-            correo='{$_POST['correo']}', nit='{$_POST['nit']}', categoria='{$_POST['categoria']}',
-            condiciones_pago='{$_POST['condiciones_pago']}', estado='{$_POST['estado']}', descripcion='{$_POST['descripcion']}'
-            WHERE id = {$_POST['id']}";
-  mysqli_query($conn, $query);
-  header('Location: proveedores.php');
-  exit();
-}
-
-if (isset($_GET['eliminar'])) {
-  $id = $_GET['eliminar'];
-  mysqli_query($conn, "DELETE FROM proveedores WHERE id = $id");
-  header('Location: proveedores.php');
-  exit();
-}
-
-$editar = false;
-$proveedor = [
-  'id' => '',
-  'nombre' => '',
-  'direccion' => '',
-  'telefono' => '',
-  'correo' => '',
-  'nit' => '',
-  'categoria' => '',
-  'condiciones_pago' => '',
-  'estado' => 'activo',
-  'descripcion' => ''
-];
-
-if (isset($_GET['editar'])) {
-  $editar = true;
-  $id = $_GET['editar'];
-  $result = mysqli_query($conn, "SELECT * FROM proveedores WHERE id = $id");
-  $proveedor = mysqli_fetch_assoc($result);
-}
 ?>
 
 <!doctype html>
@@ -98,6 +50,7 @@ if (isset($_GET['editar'])) {
     <!--begin::Required Plugin(AdminLTE)-->
     <link rel="stylesheet" href="../../../dist/css/adminlte.css" />
     <!--end::Required Plugin(AdminLTE)-->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   </head>
   <!--end::Head-->
   <!--begin::Body-->
@@ -158,7 +111,7 @@ if (isset($_GET['editar'])) {
 
 
 
-              <li class="nav-item menu-open">
+            <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
@@ -197,12 +150,15 @@ if (isset($_GET['editar'])) {
                     </a>
                   </li>
 
+
+
                   <li class="nav-item">
                     <a href="../widgets/venta_factura.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Generar Facturas</p>
                     </a>
                   </li>
+
 
                   <li class="nav-item">
                     <a href="../widgets/clientes_info.php" class="nav-link active">
@@ -212,6 +168,7 @@ if (isset($_GET['editar'])) {
                   </li>
 
 
+
                   <li class="nav-item">
                     <a href="../widgets/planilla.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -219,12 +176,18 @@ if (isset($_GET['editar'])) {
                     </a>
                   </li>
 
-  <li class="nav-item">
+
+
+                  <li class="nav-item">
                     <a href="../widgets/empleados.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Gestion de empleados</p>
                     </a>
                   </li>
+
+
+
+
 
                   <li class="nav-item">
                     <a href="../widgets/gestion_de_cuentas.php" class="nav-link active">
@@ -234,10 +197,19 @@ if (isset($_GET['editar'])) {
                   </li>
 
 
+                  <li class="nav-item">
+                    <a href="../widgets/inventario.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>inventario</p>
+                    </a>
+                  </li>
 
+
+
+
+                  
                 </ul>
               </li>
-
 
 
             </ul>
@@ -250,74 +222,169 @@ if (isset($_GET['editar'])) {
       <!--begin::App Main-->
 
 
-      
-      <main class="app-main">
-    <div class="app-content">
-  <div class="container-fluid">
-    <h3 class="mb-4">Gestión de Proveedores</h3>
+      <main class="app-main p-4">
+  <div class="container">
+    <!-- CABECERA ROJA -->
+    <div style="border-top:3px solid red; border-bottom:3px solid red; padding:8px 0; margin-bottom:10px;">
+      <h4 style="margin:0; text-align:center; text-transform:uppercase; font-family:serif;">
+        LIBRO DE INVENTARIOS
+      </h4>
+      <p style="margin:2px 0; text-align:center; font-style:italic; font-size:0.9em;">
+        Inventario No. 1 del "Almacén la Fridera", practicado el 1 de febrero de 2010.
+      </p>
+      <p style="margin:2px 0; text-align:center; font-style:italic; font-size:0.9em;">
+        (Cifras en quetzales)
+      </p>
+    </div>
 
-  
-    <form method="POST" class="mb-4 row g-3">
-      <input type="hidden" name="id" value="<?= $proveedor['id'] ?>">
-      <div class="col-md-4"><input class="form-control" name="nombre" placeholder="Nombre" value="<?= $proveedor['nombre'] ?>" required></div>
-      <div class="col-md-4"><input class="form-control" name="direccion" placeholder="Dirección" value="<?= $proveedor['direccion'] ?>"></div>
-      <div class="col-md-4"><input class="form-control" name="telefono" placeholder="Teléfono" value="<?= $proveedor['telefono'] ?>"></div>
-      <div class="col-md-4"><input class="form-control" name="correo" placeholder="Correo" value="<?= $proveedor['correo'] ?>"></div>
-      <div class="col-md-4"><input class="form-control" name="nit" placeholder="NIT" value="<?= $proveedor['nit'] ?>"></div>
-      <div class="col-md-4"><input class="form-control" name="categoria" placeholder="Categoría" value="<?= $proveedor['categoria'] ?>"></div>
-      <div class="col-md-4"><input class="form-control" name="condiciones_pago" placeholder="Condiciones de Pago" value="<?= $proveedor['condiciones_pago'] ?>"></div>
-      <div class="col-md-4">
-        <select class="form-select" name="estado">
-          <option value="activo" <?= $proveedor['estado'] == 'activo' ? 'selected' : '' ?>>Activo</option>
-          <option value="inactivo" <?= $proveedor['estado'] == 'inactivo' ? 'selected' : '' ?>>Inactivo</option>
-        </select>
-      </div>
-      <div class="col-md-4"><input class="form-control" name="descripcion" placeholder="Descripción" value="<?= $proveedor['descripcion'] ?>"></div>
-      <div class="col-12">
-        <button type="submit" name="<?= $editar ? 'actualizar' : 'guardar' ?>" class="btn btn-<?= $editar ? 'warning' : 'primary' ?>">
-          <?= $editar ? 'Actualizar' : 'Guardar' ?>
-        </button>
-      </div>
-    </form>
+    <?php
+      // Traemos todas las cuentas para el dropdown
+      $q = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
+      $cuentas = [];
+      while($f = $q->fetch_assoc()){
+        $cuentas[] = $f;
+      }
+      $cuentasJSON = json_encode($cuentas, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP);
+    ?>
 
-    <!-- Tabla de proveedores -->
-    <div class="table-responsive">
-      <table class="table table-bordered table-hover">
-        <thead class="table-light">
+    <form id="inventarioForm">
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <label class="form-label">Fecha de Inventario</label>
+          <input type="date" name="fecha" class="form-control" required value="<?php echo date('Y-m-d'); ?>">
+        </div>
+      </div>
+
+      <!-- TABLA CON LÍNEAS ROJAS -->
+      <table id="inventarioTable" class="table inventario-table">
+        <thead>
           <tr>
-            <th>#</th><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>NIT</th><th>Estado</th><th>Acciones</th>
+            <th style="width:25%">Cuenta</th>
+            <th style="width:35%">Detalle</th>
+            <th style="width:15%">Debe</th>
+            <th style="width:15%">Haber</th>
+            <th style="width:10%">Acción</th>
           </tr>
         </thead>
-        <tbody>
-          <?php
-          $resultado = mysqli_query($conn, "SELECT * FROM proveedores ORDER BY fecha_registro DESC");
-          while ($fila = mysqli_fetch_assoc($resultado)):
-          ?>
+        <tbody></tbody>
+        <tfoot>
           <tr>
-            <td><?= $fila['id'] ?></td>
-            <td><?= $fila['nombre'] ?></td>
-            <td><?= $fila['telefono'] ?></td>
-            <td><?= $fila['correo'] ?></td>
-            <td><?= $fila['nit'] ?></td>
-            <td>
-              <span class="badge bg-<?= $fila['estado'] === 'activo' ? 'success' : 'secondary' ?>">
-                <?= ucfirst($fila['estado']) ?>
-              </span>
-            </td>
-            <td>
-              <a href="?editar=<?= $fila['id'] ?>" class="btn btn-sm btn-warning">Editar</a>
-              <a href="?eliminar=<?= $fila['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Seguro que deseas eliminar este proveedor?')">Eliminar</a>
-            </td>
+            <th colspan="2" class="text-end">Totales:</th>
+            <th id="totalDebe">0.00</th>
+            <th id="totalHaber">0.00</th>
+            <th></th>
           </tr>
-          <?php endwhile; ?>
-        </tbody>
+        </tfoot>
       </table>
-    </div>
+
+      <div class="mb-3">
+        <button id="addRow" type="button" class="btn btn-secondary">➕ Agregar fila</button>
+        <button type="submit" class="btn btn-primary">💾 Guardar Inventario</button>
+      </div>
+    </form>
   </div>
-</div>
 
-      </main>
+  <!-- ESTILOS INLINE PARA SIMULAR TU PLANTILLA -->
+  <style>
+    .inventario-table {
+      width:100%;
+      border-collapse: collapse;
+      font-family: serif;
+      font-size: 0.9em;
+    }
+    .inventario-table th, .inventario-table td {
+      border: 1px solid #000;
+      padding: 4px;
+    }
+    /* Líneas rojas exteriores */
+    .inventario-table thead th {
+      border-top: 2px solid red;
+      border-bottom: 2px solid red;
+    }
+    .inventario-table tfoot th, .inventario-table tfoot td {
+      border-top: 2px solid red;
+    }
+    /* Líneas rojas verticales en los extremos */
+    .inventario-table th:first-child,
+    .inventario-table td:first-child {
+      border-left: 2px solid red;
+    }
+    .inventario-table th:last-child,
+    .inventario-table td:last-child {
+      border-right: 2px solid red;
+    }
+  </style>
 
+  <script>
+    const cuentas = <?php echo $cuentasJSON; ?>;
+    const inventarioTable = document.querySelector('#inventarioTable tbody');
+    const totalDebeEl  = document.getElementById('totalDebe');
+    const totalHaberEl = document.getElementById('totalHaber');
+    const addRowBtn    = document.getElementById('addRow');
+
+    function recalcTotals(){
+      let debe = 0, haber = 0;
+      document.querySelectorAll('.input-debe').forEach(i=>{
+        debe += parseFloat(i.value)||0;
+      });
+      document.querySelectorAll('.input-haber').forEach(i=>{
+        haber += parseFloat(i.value)||0;
+      });
+      totalDebeEl.textContent  = debe.toFixed(2);
+      totalHaberEl.textContent = haber.toFixed(2);
+    }
+
+    function addRow(){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <select name="cuenta_id[]" class="form-select" required>
+            <option value="">-- Selecciona cuenta --</option>
+            ${cuentas.map(c=>
+              `<option value="${c.id}">${c.nombre}</option>`
+            ).join('')}
+          </select>
+        </td>
+        <td><input type="text" name="detalle[]" class="form-control" placeholder="Descripción"></td>
+        <td><input type="number" name="debe[]" class="form-control input-debe" min="0" step="0.01" value="0.00"></td>
+        <td><input type="number" name="haber[]" class="form-control input-haber" min="0" step="0.01" value="0.00"></td>
+        <td class="text-center">
+          <button type="button" class="btn btn-sm btn-danger btn-remove">✖</button>
+        </td>
+      `;
+      tr.querySelectorAll('.input-debe, .input-haber').forEach(inp=>{
+        inp.addEventListener('input', recalcTotals);
+      });
+      tr.querySelector('.btn-remove').addEventListener('click', ()=>{
+        tr.remove();
+        recalcTotals();
+      });
+      inventarioTable.appendChild(tr);
+    }
+
+    addRowBtn.addEventListener('click', addRow);
+    document.addEventListener('DOMContentLoaded', ()=> addRow());
+
+    document.getElementById('inventarioForm').addEventListener('submit', e=>{
+      e.preventDefault();
+      Swal.fire({
+        icon: 'success',
+        title: 'Inventario guardado',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      // Aquí podrías enviar por fetch() los datos al servidor...
+    });
+  </script>
+</main>
+
+
+
+
+
+
+  
+<!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
       <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">

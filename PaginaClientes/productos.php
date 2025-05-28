@@ -1,6 +1,19 @@
 <?php
 session_start();
 include "php/config.php";
+// --- Procesar búsqueda ---
+$termino = trim($_GET['q'] ?? '');
+if ($termino !== '') {
+    $param = '%' . mysqli_real_escape_string($conn, $termino) . '%';
+    $sql = "SELECT * 
+            FROM productos 
+            WHERE nombre LIKE '$param' 
+            ORDER BY id DESC";
+} else {
+    $sql = "SELECT * FROM productos ORDER BY id DESC";
+}
+$result = mysqli_query($conn, $sql);
+?>
 ?>
 
 <!doctype html>
@@ -10,6 +23,54 @@ include "php/config.php";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RabinalArts</title>
     <link href="assets/css/style.css" rel="stylesheet" type="text/css">
+    <style>
+      /* Estilos para el buscador */
+      .busqueda-container {
+        position: relative;
+        max-width: 400px;
+        margin: 1rem auto;
+      }
+      #search-input {
+        width: 100%;
+        padding: .5rem;
+        font-size: 1rem;
+      }
+      .suggestions {
+        position: absolute;
+        top: 110%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ccc;
+        z-index: 10;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .suggestion-item {
+        display: flex;
+        align-items: center;
+        padding: .5rem;
+        cursor: pointer;
+      }
+      .suggestion-item img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        margin-right: .5rem;
+      }
+      .suggestion-item:hover {
+        background: #f0f0f0;
+      }
+      /* Highlight animado */
+      .card.highlight {
+        animation: highlightAnim 2s ease-in-out;
+      }
+      @keyframes highlightAnim {
+        0%   { box-shadow: 0 0 0px rgba(255, 215, 0, 0.8); }
+        50%  { box-shadow: 0 0 10px rgba(255, 215, 0, 0.8); }
+        100% { box-shadow: 0 0 0px rgba(255, 215, 0, 0.8); }
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -43,34 +104,44 @@ include "php/config.php";
       </div>
     </header>
 
-<main>
-  <div class="modal" id="modal">
-    <div class="modal-content">
-      <img src="" alt="" class="modal-img" id="modal-img">
-    </div>
-    <div class="modal-boton" id="modal-boton">X</div>
-  </div>
-
-  <div class="container-productos" id="lista-productos">
-    <?php
-      $result = mysqli_query($conn, "SELECT * FROM productos ORDER BY id DESC");
-      while($row = mysqli_fetch_assoc($result)):
-    ?>
-    <div class="card">
-    <img src="http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/<?php echo htmlspecialchars($row['imagen']); ?>" class="card-img">
-
-      <h5><?php echo htmlspecialchars($row['nombre']); ?></h5>
-      <p>$<small class="precio"><?php echo number_format($row['precio'], 2); ?></small></p>
-      <div class="cantidad">
-        <button class="btn-decrementar">-</button>
-        <input type="number" class="cantidad-input" value="1" min="1"> 
-        <button class="btn-incrementar">+</button>
+ <main>
+      <!-- Buscador -->
+      <div class="busqueda-container">
+        <input 
+          type="text" 
+          id="search-input" 
+          placeholder="Buscar producto por nombre…" 
+          value="<?= htmlspecialchars($termino) ?>"
+        >
+        <div id="suggestions" class="suggestions"></div>
       </div>
-      <a href="#" class="button agregar-carrito" data-id="<?php echo $row['id']; ?>">Comprar</a>
-    </div>
-    <?php endwhile; ?>
-  </div>
-</main>
+
+      <!-- Lista de productos -->
+      <div class="container-productos" id="lista-productos">
+        <?php if (mysqli_num_rows($result) === 0): ?>
+          <p>No se encontraron productos para «<?= htmlspecialchars($termino) ?>».</p>
+        <?php endif; ?>
+
+        <?php while ($row = mysqli_fetch_assoc($result)):
+          $cardId = 'producto-' . $row['id'];
+        ?>
+          <div class="card" id="<?= $cardId ?>" data-id="<?= $row['id'] ?>">
+            <img 
+              src="http://localhost/sadasd/RabinalArts/PaginaAdminn/dist/pages/widgets/uploads/<?= htmlspecialchars($row['imagen']) ?>" 
+              class="card-img"
+            >
+            <h5 class="card-title"><?= htmlspecialchars($row['nombre']) ?></h5>
+            <p>$<small class="precio"><?= number_format($row['precio'], 2) ?></small></p>
+            <div class="cantidad">
+              <button class="btn-decrementar">-</button>
+              <input type="number" class="cantidad-input" value="1" min="1">
+              <button class="btn-incrementar">+</button>
+            </div>
+            <a href="#" class="button agregar-carrito" data-id="<?= $row['id'] ?>">Comprar</a>
+          </div>
+        <?php endwhile; ?>
+      </div>
+    </main>
 
 <footer class="footer-section">
   <div class="copyright-area">
@@ -130,6 +201,51 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const cards = Array.from(document.querySelectorAll('.card'));
+      const products = cards.map(card => ({
+        id: card.dataset.id,
+        title: card.querySelector('.card-title').textContent.trim(),
+        img: card.querySelector('img').src,
+        price: card.querySelector('.precio').textContent.trim()
+      }));
+
+      const input = document.getElementById('search-input');
+      const suggestions = document.getElementById('suggestions');
+
+      input.addEventListener('input', () => {
+        const term = input.value.trim().toLowerCase();
+        suggestions.innerHTML = '';
+        if (!term) return;
+
+        const matches = products.filter(p => p.title.toLowerCase().includes(term));
+        matches.forEach(p => {
+          const div = document.createElement('div');
+          div.classList.add('suggestion-item');
+          div.innerHTML = `
+            <img src="${p.img}" alt="${p.title}">
+            <div>
+              <strong>${p.title}</strong><br>
+              $${p.price}
+            </div>
+          `;
+          div.addEventListener('click', () => {
+            const target = document.getElementById('producto-' + p.id);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              target.classList.add('highlight');
+              setTimeout(() => target.classList.remove('highlight'), 2000);
+            }
+            suggestions.innerHTML = '';
+            input.value = '';
+          });
+          suggestions.appendChild(div);
+        });
+      });
+     });
+
 
 document.addEventListener('click', function(e) {
     if (e.target && e.target.classList.contains('btn-incrementar')) {
