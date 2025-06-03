@@ -191,6 +191,22 @@ include 'conexion.php';
                   </li>
 
 
+                                    <li class="nav-item">
+                    <a href="../widgets/inventario.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>inventario</p>
+                    </a>
+                  </li>
+
+
+                  <li class="nav-item">
+                    <a href="../widgets/clasificar_inventario.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Clasificación de inventario</p>
+                    </a>
+                  </li>
+
+
 
                 </ul>
               </li>
@@ -364,6 +380,20 @@ document.addEventListener("DOMContentLoaded", () => {
       <?php endwhile; ?>
       </tbody>
     </table>
+
+          <!-- ******************************* -->
+      <!-- Aquí agregamos el botón “Certificado” -->
+      <div class="text-end my-4">
+        <button 
+          type="button" 
+          class="btn btn-success" 
+          onclick="window.open('exportar_certificado_pdf.php', '_blank')"
+        >
+          🖨️ Realizar Certificado
+        </button>
+      </div>
+      <!-- ******************************* -->
+
   </div>
   </div>
 </main>

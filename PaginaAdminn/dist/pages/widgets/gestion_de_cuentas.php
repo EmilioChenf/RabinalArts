@@ -261,6 +261,14 @@ if (isset($_GET['edit'])) {
                   </li>
 
 
+                  <li class="nav-item">
+                    <a href="../widgets/clasificar_inventario.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Clasificación de inventario</p>
+                    </a>
+                  </li>
+
+
 
 
                   

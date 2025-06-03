@@ -1,4 +1,65 @@
-<?php include 'conexion.php'; ?>
+
+<?php
+// gestion_de_cuentas.php
+include 'conexion.php';
+$cuentas = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
+// 1) PROCESAR BORRADO
+if (isset($_GET['delete'])) {
+    $del_id = intval($_GET['delete']);
+    $stmt = $conn->prepare("DELETE FROM cuentas_contables WHERE id = ?");
+    $stmt->bind_param("i", $del_id);
+    $stmt->execute();
+    header("Location: gestion_de_cuentas.php?msg=deleted");
+    exit;
+}
+
+// 2) PROCESAR CREAR / ACTUALIZAR
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
+    $id            = intval($_POST['id'] ?? 0);
+    $nombre        = trim($_POST['nombre']);
+    $egr           = isset($_POST['nominal_egreso']) ? 1 : 0;
+    $ing           = isset($_POST['nominal_ingreso']) ? 1 : 0;
+    $deb           = isset($_POST['balance_deudor']) ? 1 : 0;
+    $acre          = isset($_POST['balance_acreedor']) ? 1 : 0;
+    $clasificacion = trim($_POST['clasificacion']);
+
+    if ($id > 0) {
+        // actualizar
+        $stmt = $conn->prepare("
+          UPDATE cuentas_contables 
+            SET nombre=?, nominal_egreso=?, nominal_ingreso=?, balance_deudor=?, balance_acreedor=?, clasificacion=?
+          WHERE id=?
+        ");
+        $stmt->bind_param("siiiisi",
+            $nombre, $egr, $ing, $deb, $acre, $clasificacion, $id
+        );
+        $stmt->execute();
+        $msg = 'updated';
+    } else {
+        // insertar
+        $stmt = $conn->prepare("
+          INSERT INTO cuentas_contables
+            (nombre, nominal_egreso, nominal_ingreso, balance_deudor, balance_acreedor, clasificacion)
+          VALUES (?,?,?,?,?,?)
+        ");
+        $stmt->bind_param("siiiis",
+            $nombre, $egr, $ing, $deb, $acre, $clasificacion
+        );
+        $stmt->execute();
+        $msg = 'created';
+    }
+    header("Location: gestion_de_cuentas.php?msg=$msg");
+    exit;
+}
+
+// 3) SI VIENE ?edit=ID, traemos para prefilling
+$edit = null;
+if (isset($_GET['edit'])) {
+    $eid = intval($_GET['edit']);
+    $res = $conn->query("SELECT * FROM cuentas_contables WHERE id = $eid");
+    $edit = $res->fetch_assoc();
+}
+?>
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -45,6 +106,7 @@
     <!--begin::Required Plugin(AdminLTE)-->
     <link rel="stylesheet" href="../../../dist/css/adminlte.css" />
     <!--end::Required Plugin(AdminLTE)-->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   </head>
   <!--end::Head-->
   <!--begin::Body-->
@@ -180,7 +242,10 @@
                   </li>
 
 
-                                    <li class="nav-item">
+
+
+
+                  <li class="nav-item">
                     <a href="../widgets/gestion_de_cuentas.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Gestion de cuentas</p>
@@ -188,7 +253,7 @@
                   </li>
 
 
-                                    <li class="nav-item">
+                  <li class="nav-item">
                     <a href="../widgets/inventario.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>inventario</p>
@@ -202,6 +267,8 @@
                       <p>Clasificación de inventario</p>
                     </a>
                   </li>
+
+
 
 
                   
@@ -220,195 +287,195 @@
 
 
       
+ <main class="app-main p-4">
+  <div class="container">
+    <h3 class="mb-4">Libro de Inventarios</h3>
 
-      <main class="app-main">
-    <div class="app-content-header p-4">
-      <div class="container-fluid">
-        <h3 class="mb-0">Sistema Contable</h3>
+    <form id="form-inventario" method="POST" action="procesar_inventario.php">
+      <!-- 1) Clasificación -->
+      <div class="mb-3">
+        <label for="clasificacion" class="form-label">Clasificación</label>
+        <select id="clasificacion" name="clasificacion" class="form-select" required>
+          <option value="">-- Selecciona --</option>
+          <option>ACTIVO CORRIENTE DISPONIBLE</option>
+          <option>ACTIVO CORRIENTE EXIGIBLE</option>
+          <option>ACTIVO CORRIENTE REALIZABLE</option>
+          <option>ACTIVO NO CORRIENTE</option>
+          <option>PASIVO CORRIENTE</option>
+          <option>PASIVO NO CORRIENTE</option>
+          <option>CUENTA DE CAPITAL</option>
+        </select>
       </div>
-    </div>
 
-    <div class="app-content p-4">
-      <div class="container-fluid">
-
-        <!-- Resumen por Categoría -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Resumen de ingresos por categoría</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Categoría</th><th>Total ingresos ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
-                  while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>$ " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
+      <!-- 2) Panel de búsqueda y detalle -->
+      <div id="panel-cuentas" style="display:none;">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-6">
+            <label for="busqueda-cuenta" class="form-label">Buscar cuenta</label>
+            <input 
+              type="text" 
+              id="busqueda-cuenta" 
+              class="form-control mb-2" 
+              placeholder="Escribe nombre de cuenta..."
+              list="lista-cuentas" 
+            >
+            <datalist id="lista-cuentas">
+              <?php while($r = $cuentas->fetch_assoc()): ?>
+                <option data-id="<?= $r['id'] ?>" value="<?= htmlspecialchars($r['nombre']) ?>"></option>
+              <?php endwhile; ?>
+            </datalist>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Monto (Q)</label>
+            <input type="number" step="0.01" id="monto-cuenta" class="form-control" placeholder="Ej. 1234.56" disabled>
+          </div>
+          <div class="col-md-2">
+            <button type="button" id="btn-agregar" class="btn btn-secondary w-100" disabled>Agregar</button>
           </div>
         </div>
 
-          <!-- Ganancias por Producto -->
-    <div class="card mb-4">
-        <div class="card-header">Ganancias por producto (ventas)</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead><tr><th>Producto</th><th>Unidades Vendidas</th><th>Precio Unitario</th><th>Ganancia ($)</th></tr></thead>
-                <tbody>
-                <?php
-                $res = mysqli_query($conn, "SELECT p.nombre, SUM(d.cantidad) AS cantidad_vendida, d.precio_unitario, SUM(d.total) AS total_ganancia FROM detalle_venta d JOIN productos p ON d.producto_id = p.id GROUP BY d.producto_id");
-                while($row = mysqli_fetch_assoc($res)) {
-                    echo "<tr><td>{$row['nombre']}</td><td>{$row['cantidad_vendida']}</td><td>$ ".number_format($row['precio_unitario'], 2)."</td><td>$ ".number_format($row['total_ganancia'], 2)."</td></tr>";
-                }
-                ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-
- <!-- Ganancias del mes actual -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Ganancias del mes actual</strong></div>
-    <div class="card-body">
-        <?php
-        $mesActual = date('Y-m'); // Formato YYYY-MM
-        $query = "SELECT SUM(precio * stock) AS ganancias_mes 
-                  FROM productos 
-                  WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $mesActual);
-        $stmt->execute();
-        $resultado = $stmt->get_result();
-        $gananciasMes = $resultado->fetch_assoc();
-        $ganancia = $gananciasMes['ganancias_mes'] ?? 0;
-        ?>
-        <h4 class="text-success">Q <?= number_format($ganancia, 2) ?></h4>
-    </div>
-</div>
-
-<!-- Reporte filtrable por calendario -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Reporte de ingresos por fecha</strong></div>
-    <div class="card-body">
-        <form method="GET" class="mb-3">
-            <label for="fecha">Selecciona una fecha:</label>
-            <input type="date" name="fecha" id="fecha" class="form-control" value="<?php echo isset($_GET['fecha']) ? $_GET['fecha'] : ''; ?>" required>
-            <button type="submit" class="btn btn-primary mt-2">Ver reporte</button>
-        </form>
-
-        <?php
-        if (isset($_GET['fecha'])) {
-            $fechaSeleccionada = $_GET['fecha'];
-            $dia = $fechaSeleccionada;
-            $mes = date('Y-m', strtotime($fechaSeleccionada));
-            $anio = date('Y', strtotime($fechaSeleccionada));
-
-            // Reporte diario
-            $diario = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE(fecha_creacion) = '$dia'"));
-
-            // Reporte mensual
-            $mensual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = '$mes'"));
-
-            // Reporte anual
-            $anual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE YEAR(fecha_creacion) = '$anio'"));
-
-            echo "<h5>Resultados para: " . date('d-m-Y', strtotime($fechaSeleccionada)) . "</h5>";
-
-            echo "<table class='table table-bordered'>
-                <thead><tr><th>Periodo</th><th>Total Ingresos ($)</th></tr></thead>
-                <tbody>
-                    <tr><td>Dia seleccionado ($dia)</td><td>$ " . number_format($diario['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Mes actual ($mes)</td><td>$ " . number_format($mensual['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Año actual ($anio)</td><td>$ " . number_format($anual['total'] ?? 0, 2) . "</td></tr>
-                </tbody>
-            </table>";
-        }
-        ?>
-    </div>
-</div>
-
-
-        <!-- Detalle por producto (nuevo) -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Detalle por producto</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Total ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $detalle = mysqli_query($conn, "SELECT nombre, categoria, precio, stock FROM productos");
-                  while($fila = mysqli_fetch_assoc($detalle)) {
-                    $total = $fila['precio'] * $fila['stock'];
-                    echo "<tr>
-                      <td>{$fila['nombre']}</td>
-                      <td>{$fila['categoria']}</td>
-                      <td>$ " . number_format($fila['precio'], 2) . "</td>
-                      <td>{$fila['stock']}</td>
-                      <td>$ " . number_format($total, 2) . "</td>
-                    </tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Balance General -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Balance general</strong></div>
-          <div class="card-body">
-            <ul>
-              <li><strong>Activos:</strong> Inventario disponible = 
-                <?php
-                  $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "$ " . number_format($activos['total'], 2);
-                ?>
-              </li>
-              <li><strong>Pasivos:</strong> (simulados) = $ 5,000.00</li>
-              <li><strong>Capital:</strong> 
-                <?php
-                  $capital = $activos['total'] - 5000;
-                  echo "$ " . number_format($capital, 2);
-                ?>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-<!-- Exportar PDF por fecha -->
-<div class="card mb-4">
-  <div class="card-header"><strong>Exportar Reporte Contable (PDF)</strong></div>
-  <div class="card-body">
-    <form action="exportar_pdf.php" method="get" class="row g-3">
-      <div class="col-md-4">
-        <label for="fecha" class="form-label">Selecciona una fecha</label>
-        <input type="date" name="fecha" id="fecha" class="form-control">
+        <!-- 3) Tabla de detalle -->
+        <table class="table table-bordered mt-4">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th class="text-end">Monto (Q)</th>
+              <th>Quitar</th>
+            </tr>
+          </thead>
+          <tbody id="detalle-body"></tbody>
+        </table>
       </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <button type="submit" class="btn btn-danger">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-        </button>
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <a href="exportar_pdf.php" target="_blank" class="btn btn-secondary">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar TODO (sin filtrar)
-        </a>
-      </div>
+
+      <!-- 4) Botón Guardar -->
+      <button type="submit" class="btn btn-primary mt-3">Guardar Inventario</button>
     </form>
   </div>
-</div>
 
+  <script>
+    const panel       = document.getElementById('panel-cuentas');
+    const buscador    = document.getElementById('busqueda-cuenta');
+    const montoInp    = document.getElementById('monto-cuenta');
+    const btnAgr      = document.getElementById('btn-agregar');
+    const tbody       = document.getElementById('detalle-body');
+    let detalle = [];
 
+    // Mostrar panel al elegir clasificación
+    document.getElementById('clasificacion')
+      .addEventListener('change', e => {
+        panel.style.display = e.target.value ? 'block' : 'none';
+      });
 
-      </div>
-    </div>
+    // Activar monto/boton al seleccionar cuenta válida
+    buscador.addEventListener('input', () => {
+      const val = buscador.value;
+      const opt = Array.from(document.querySelectorAll('#lista-cuentas option'))
+        .find(o => o.value === val);
+      if (opt) {
+        montoInp.disabled = false;
+        btnAgr.disabled   = false;
+        montoInp.focus();
+      } else {
+        montoInp.value    = '';
+        montoInp.disabled = true;
+        btnAgr.disabled   = true;
+      }
+    });
+
+    // Agregar al detalle
+    btnAgr.addEventListener('click', () => {
+      const nombre = buscador.value;
+      const opt    = Array.from(document.querySelectorAll('#lista-cuentas option'))
+                        .find(o => o.value === nombre);
+      const id     = opt?.dataset.id;
+      const monto  = parseFloat(montoInp.value);
+      if (!id || isNaN(monto)) {
+        Swal.fire('Error','Selecciona cuenta válida y monto','error');
+        return;
+      }
+      if (detalle.some(d => d.id === id)) {
+        Swal.fire('Aviso','Ya agregaste esa cuenta','warning');
+        return;
+      }
+      detalle.push({id,nombre,monto});
+      renderDetalle();
+      // reset
+      buscador.value = '';
+      montoInp.value = '';
+      montoInp.disabled = true;
+      btnAgr.disabled   = true;
+    });
+
+    function renderDetalle() {
+      tbody.innerHTML = '';
+      // borrar inputs ocultos previos
+      document.querySelectorAll('input[name="cuenta_ids[]"], input[name="montos[]"]')
+        .forEach(n=>n.remove());
+
+      detalle.forEach((row, i) => {
+        // fila con input editable
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.nombre}</td>
+          <td class="text-end">
+            <input 
+              type="number" step="0.01" 
+              class="form-control monto-edit text-end" 
+              style="width:6rem; display:inline-block;"
+              value="${row.monto.toFixed(2)}"
+            >
+          </td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger">×</button>
+          </td>`;
+        // eliminar
+        tr.querySelector('button').onclick = () => {
+          detalle.splice(i,1);
+          renderDetalle();
+        };
+        tbody.appendChild(tr);
+
+        // crear ocultos con IDs únicos
+        const f1 = document.createElement('input');
+        f1.type = 'hidden'; 
+        f1.name = 'cuenta_ids[]'; 
+        f1.value= row.id;
+
+        const f2 = document.createElement('input');
+        f2.type = 'hidden'; 
+        f2.name = 'montos[]';      
+        f2.id   = `monto_hidden_${i}`; 
+        f2.value= row.monto;
+
+        document.getElementById('form-inventario').append(f1, f2);
+
+        // atachar edición inline
+        tr.querySelector('.monto-edit')
+          .addEventListener('change', e => {
+            let val = parseFloat(e.target.value);
+            if (isNaN(val)) return;
+            detalle[i].monto = val;
+            document.getElementById(`monto_hidden_${i}`).value = val;
+          });
+      });
+    }
+  </script>
+      <script>
+      document.getElementById('form-inventario').addEventListener('submit', function(e) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'success',
+          title: '¡Inventario guardado!',
+          showConfirmButton: false,
+          timer: 1500
+        }).then(() => {
+          this.submit();
+        });
+      });
+    </script>
   </main>
+
+
 
 
   
