@@ -229,8 +229,11 @@ $html .= '
 
   <div class="firma">
     _______________________________<br>
-    Contador Oscar
+            Oscar
+     Contador General
   </div>
+
+  
 
 </body>
 </html>

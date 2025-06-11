@@ -229,6 +229,12 @@ $sections = [
                     </a>
                   </li>
 
+                  <li class="nav-item">
+                    <a href="../widgets/docuemnetación.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Registro de Compras (Internas)</p>
+                    </a>
+                  </li>
 
 
 

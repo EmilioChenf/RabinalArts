@@ -1,64 +1,84 @@
 
 <?php
-// gestion_de_cuentas.php
+// compras.php
 include 'conexion.php';
-$cuentas = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
-// 1) PROCESAR BORRADO
-if (isset($_GET['delete'])) {
-    $del_id = intval($_GET['delete']);
-    $stmt = $conn->prepare("DELETE FROM cuentas_contables WHERE id = ?");
-    $stmt->bind_param("i", $del_id);
-    $stmt->execute();
-    header("Location: gestion_de_cuentas.php?msg=deleted");
+
+// 1) Si viene POST, grabamos la factura
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_invoice'])) {
+    $tipo            = $_POST['tipo_documento'];
+    $proveedor_id    = intval($_POST['proveedor_id']);
+    $nit             = $_POST['nit'];
+    $numero_factura  = $_POST['numero_factura'];
+    $fecha_compra    = $_POST['fecha_compra'];
+    $descripcion     = trim($_POST['descripcion']);
+    $forma_pago      = $_POST['forma_pago'];
+    $clasificacion   = $_POST['clasificacion'];
+    $bienes_sin_iva  = floatval($_POST['bienes_sin_iva']);
+    $serv_sin_iva    = floatval($_POST['servicios_sin_iva']);
+    $iva             = floatval($_POST['iva']);
+    $total_sin_iva   = floatval($_POST['total_sin_iva']);
+    $total_con_iva   = floatval($_POST['total_con_iva']);
+    $periodo_pago    = $_POST['periodo_pago'];
+
+$stmt = $conn->prepare("
+  INSERT INTO compras
+    (tipo_documento, proveedor_id, nit, numero_factura, fecha_compra, descripcion,
+     forma_pago, clasificacion, bienes_sin_iva, servicios_sin_iva,
+     iva, total_sin_iva, total_con_iva, periodo_pago)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+");
+if ( ! $stmt) {
+  die("Error al preparar SQL: " . $conn->error);
+}
+
+// TIPOS:
+// 1 s: tipo_documento
+// 2 i: proveedor_id
+// 3 s: nit
+// 4 s: numero_factura
+// 5 s: fecha_compra
+// 6 s: descripcion
+// 7 s: forma_pago
+// 8 s: clasificacion
+// 9 d: bienes_sin_iva
+//10 d: servicios_sin_iva
+//11 d: iva
+//12 d: total_sin_iva
+//13 d: total_con_iva
+//14 s: periodo_pago
+$stmt->bind_param(
+  "sissssssddddds",
+  $tipo,
+  $proveedor_id,
+  $nit,
+  $numero_factura,
+  $fecha_compra,
+  $descripcion,
+  $forma_pago,
+  $clasificacion,
+  $bienes_sin_iva,
+  $serv_sin_iva,
+  $iva,
+  $total_sin_iva,
+  $total_con_iva,
+  $periodo_pago
+);
+
+$stmt->execute();
+$stmt->close();
+
+    header("Location: compras.php?success=1");
     exit;
 }
 
-// 2) PROCESAR CREAR / ACTUALIZAR
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
-    $id            = intval($_POST['id'] ?? 0);
-    $nombre        = trim($_POST['nombre']);
-    $egr           = isset($_POST['nominal_egreso']) ? 1 : 0;
-    $ing           = isset($_POST['nominal_ingreso']) ? 1 : 0;
-    $deb           = isset($_POST['balance_deudor']) ? 1 : 0;
-    $acre          = isset($_POST['balance_acreedor']) ? 1 : 0;
-    $clasificacion = trim($_POST['clasificacion']);
+// Cargo listas para los selects
+$proveedores   = $conn->query("SELECT id, nombre, nit FROM proveedores ORDER BY nombre");
+$tipos         = ['Factura electrónica','Factura especial','Nota de crédito'];
+$formas_pago   = ['Efectivo','Cheque','Transferencia','Letra de cambio'];
+$clasificaciones = ['Mercadería','Papelería','Equipo de cómputo']; // ajusta según necesites
 
-    if ($id > 0) {
-        // actualizar
-        $stmt = $conn->prepare("
-          UPDATE cuentas_contables 
-            SET nombre=?, nominal_egreso=?, nominal_ingreso=?, balance_deudor=?, balance_acreedor=?, clasificacion=?
-          WHERE id=?
-        ");
-        $stmt->bind_param("siiiisi",
-            $nombre, $egr, $ing, $deb, $acre, $clasificacion, $id
-        );
-        $stmt->execute();
-        $msg = 'updated';
-    } else {
-        // insertar
-        $stmt = $conn->prepare("
-          INSERT INTO cuentas_contables
-            (nombre, nominal_egreso, nominal_ingreso, balance_deudor, balance_acreedor, clasificacion)
-          VALUES (?,?,?,?,?,?)
-        ");
-        $stmt->bind_param("siiiis",
-            $nombre, $egr, $ing, $deb, $acre, $clasificacion
-        );
-        $stmt->execute();
-        $msg = 'created';
-    }
-    header("Location: gestion_de_cuentas.php?msg=$msg");
-    exit;
-}
-
-// 3) SI VIENE ?edit=ID, traemos para prefilling
-$edit = null;
-if (isset($_GET['edit'])) {
-    $eid = intval($_GET['edit']);
-    $res = $conn->query("SELECT * FROM cuentas_contables WHERE id = $eid");
-    $edit = $res->fetch_assoc();
-}
+// Autonúmero sencillo de factura
+$numero_factura = 'F-' . date('YmdHis');
 ?>
 <!doctype html>
 <html lang="en">
@@ -267,6 +287,12 @@ if (isset($_GET['edit'])) {
                       <p>Clasificación de inventario</p>
                     </a>
                   </li>
+                  <li class="nav-item">
+                    <a href="../widgets/docuemnetación.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Registro de Compras (Internas)</p>
+                    </a>
+                  </li>
 
 
 
@@ -287,69 +313,127 @@ if (isset($_GET['edit'])) {
 
 
       
-     <main class="app-main p-4">
-        <div class="container">
-          <h3 class="mb-4">Gestión de Documentos Contables</h3>
-          <ul class="nav nav-tabs mb-4">
-            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#internos">Documentos Internos</a></li>
-            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#externos">Documentos Externos</a></li>
-          </ul>
-          <div class="tab-content">
-            <div id="internos" class="tab-pane fade show active">
-              <h5>Registro de Compras (Internas)</h5>
-              <form id="facturaInternaForm" method="POST" action="procesar_factura_interna.php">
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label class="form-label">Tipo de documento</label>
-                    <select name="tipo" class="form-select" required>
-                      <option value="electronica">Factura electrónica</option>
-                      <option value="especial">Factura especial</option>
-                      <option value="credito">Nota de crédito</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label">NIT del proveedor</label>
-                    <select id="nitProveedor" name="nit" class="form-select" required></select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label">Forma de pago</label>
-                    <select name="forma_pago" class="form-select" required>
-                      <option value="efectivo">Efectivo</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="transferencia">Transferencia</option>
-                      <option value="letra">Letra de cambio</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label">Fecha de compra</label>
-                    <input type="date" name="fecha_compra" class="form-control" required>
-                  </div>
-                  <div class="col-md-8">
-                    <label class="form-label">Descripción</label>
-                    <input type="text" name="descripcion" class="form-control" placeholder="Razón de la compra" required>
-                  </div>
-                </div>
-                <hr>
-                <h6>Detalle contable</h6>
-                <table class="table table-bordered mb-3">
-                  <thead>
-                    <tr><th>Clasificación</th><th>Afectos IVA</th><th>Cantidad</th><th>Precio Unit.</th><th>Subtotal</th></tr>
-                  </thead>
-                  <tbody id="detalleRows"></tbody>
-                </table>
-                <button type="button" id="addDetalle" class="btn btn-sm btn-secondary mb-3">➕ Agregar línea</button>
-                <div class="text-end">
-                  <button type="submit" class="btn btn-primary">Guardar Factura</button>
-                </div>
-              </form>
-            </div>
-            <div id="externos" class="tab-pane fade">
-              <p>Próximamente: Registro de Ventas y Documentos Externos.</p>
-            </div>
-          </div>
-        </div>
-      </main>
+  <main class="app-main p-4">
+    <div class="container">
+      <h3 class="mb-4">Registro de Compras (Internas)</h3>
 
+      <?php if(isset($_GET['success'])): ?>
+        <script>
+          Swal.fire({
+            icon:'success',
+            title:'¡Factura guardada!',
+            showConfirmButton:false,
+            timer:1500
+          });
+        </script>
+      <?php endif; ?>
+
+      <form method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
+        <!-- A. Datos básicos -->
+        <div class="col-md-4">
+          <label class="form-label">Tipo de documento</label>
+          <select name="tipo_documento" class="form-select" required>
+            <?php foreach($tipos as $t): ?>
+              <option><?= htmlspecialchars($t) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Proveedor</label>
+          <select id="prov" name="proveedor_id" class="form-select" required>
+            <option value="">-- elige proveedor --</option>
+            <?php while($pr=$proveedores->fetch_assoc()): ?>
+              <option 
+                value="<?= $pr['id'] ?>"
+                data-nit="<?= htmlspecialchars($pr['nit']) ?>"
+              ><?= htmlspecialchars($pr['nombre']) ?></option>
+            <?php endwhile; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">NIT</label>
+          <input id="nit" name="nit" class="form-control" readonly>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Número de factura</label>
+          <input name="numero_factura" class="form-control" readonly 
+                 value="<?= $numero_factura ?>">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Fecha de compra</label>
+          <input type="date" name="fecha_compra" class="form-control"
+                 value="<?= date('Y-m-d') ?>" required>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Descripción</label>
+          <input type="text" name="descripcion" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Forma de pago</label>
+          <select name="forma_pago" class="form-select">
+            <?php foreach($formas_pago as $f): ?>
+              <option><?= htmlspecialchars($f) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <!-- B. Detalle contable -->
+        <div class="col-md-4">
+          <label class="form-label">Clasificación</label>
+          <select name="clasificacion" class="form-select">
+            <?php foreach($clasificaciones as $c): ?>
+              <option><?= htmlspecialchars($c) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Bienes sin IVA</label>
+          <input type="number" step="0.01" name="bienes_sin_iva" id="bienes"
+                 class="form-control" value="0">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Servicios sin IVA</label>
+          <input type="number" step="0.01" name="servicios_sin_iva" id="serv"
+                 class="form-control" value="0">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">IVA (12%)</label>
+          <input type="number" step="0.01" name="iva" id="iva"
+                 class="form-control" readonly>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Total sin IVA</label>
+          <input type="number" step="0.01" name="total_sin_iva" id="totSin"
+                 class="form-control" readonly>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Total con IVA</label>
+          <input type="number" step="0.01" name="total_con_iva" id="totCon"
+                 class="form-control" readonly>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Periodo de compra</label>
+          <input type="text" name="periodo_pago" class="form-control"
+                 placeholder="Ej. 30 días crédito">
+        </div>
+
+        <div class="col-12 text-end">
+          <button name="save_invoice" type="submit" class="btn btn-success">
+            💾 Generar
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
 
 
   
@@ -413,6 +497,67 @@ if (isset($_GET['edit'])) {
         }
       });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Al cambiar NIT, actualiza nombre
+      document.getElementById('nitProveedor').addEventListener('change', function(){
+        const opt = this.options[this.selectedIndex];
+        document.getElementById('nombreProveedor').value = opt.getAttribute('data-nombre') || '';
+      });
+      // Agrega línea de detalle
+      document.getElementById('addDetalle').addEventListener('click', function(){
+        const tbody = document.querySelector('#detalleRows');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <select name="clasificacion_detalle[]" class="form-select">
+              <option>Mercadería</option><option>Papelería</option><option>Equipo de cómputo</option>
+            </select>
+          </td>
+          <td><input type="checkbox" name="afecto_iva[]"></td>
+          <td><input type="number" name="cantidad[]" class="form-control" value="1"></td>
+          <td><input type="number" name="precio_unitario[]" class="form-control" step="0.01"></td>
+          <td><input type="number" name="subtotal[]" class="form-control" step="0.01" readonly></td>
+        `;
+        // Calcular subtotal al cambiar cantidad/precio
+        tr.addEventListener('input', e=>{
+          const row = e.target.closest('tr');
+          const qty = parseFloat(row.querySelector('[name="cantidad[]"]').value)||0;
+          const pu  = parseFloat(row.querySelector('[name="precio_unitario[]"]').value)||0;
+          row.querySelector('[name="subtotal[]"]').value = (qty*pu).toFixed(2);
+        });
+        tbody.appendChild(tr);
+      });
+      // SweetAlert al guardar
+      document.getElementById('facturaInternaForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        Swal.fire({icon:'success',title:'Factura guardada!',timer:1500,showConfirmButton:false})
+          .then(()=> this.submit());
+      });
+    </script>
+    <script>
+// al cambiar proveedor rellena el NIT
+document.getElementById('prov').addEventListener('change', function(){
+  let nit = this.options[this.selectedIndex].dataset.nit||'';
+  document.getElementById('nit').value = nit;
+});
+
+// calcula IVA y totales
+function calc() {
+  let bienes = parseFloat(document.getElementById('bienes').value)||0;
+  let serv   = parseFloat(document.getElementById('serv').value)||0;
+  let sinIVA = bienes + serv;
+  let iva    = sinIVA * 0.12;
+  let conIVA = sinIVA + iva;
+  document.getElementById('iva').value    = iva.toFixed(2);
+  document.getElementById('totSin').value = sinIVA.toFixed(2);
+  document.getElementById('totCon').value = conIVA.toFixed(2);
+}
+document.getElementById('bienes').addEventListener('input', calc);
+document.getElementById('serv').addEventListener('input', calc);
+calc();  // inicial
+
+</script>
     <!--end::OverlayScrollbars Configure-->
     <!--end::Script-->
   </body>
