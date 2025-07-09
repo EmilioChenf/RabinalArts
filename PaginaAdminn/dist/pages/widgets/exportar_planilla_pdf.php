@@ -19,14 +19,33 @@ if (!$result || mysqli_num_rows($result) === 0) {
 }
 $data = mysqli_fetch_assoc($result);
 
-// 2) Calcular valor de hora extra (suponiendo 240 h/mes si no hay campo específico)
-$valorHora = 0;
-if (!empty($data['sueldo_base'])) {
-    $valorHora = $data['sueldo_base'] / 240;
-}
-$totalHorasExtras = $valorHora * $data['horas_extras'];
+// 2) Procesar cálculo de campos
+$sueldoNeto      = $data['sueldo_base'] - $data['anticipo'];
+$valorHora       = $data['sueldo_base'] / 240;
+$totalHorasExtra = $valorHora * $data['horas_extras'];
+$totalDevengado  = $sueldoNeto + $totalHorasExtra + $data['comisiones'] + $data['bonificacion'];
 
-// 3) Generar HTML con estilo de “Planilla Mensual”
+// 3) Pasar a un array para la tabla
+$filas = [[
+    'no'               => 1,
+    'nombre'           => htmlspecialchars($data['nombre']),
+    'puesto'           => htmlspecialchars($data['puesto']),
+    'sueldo'           => number_format($sueldoNeto, 2),
+    'horas_extras'     => intval($data['horas_extras']),
+    'valor_extra'      => number_format($totalHorasExtra, 2),
+    'comisiones'       => number_format($data['comisiones'], 2),
+    'bonificacion'     => number_format($data['bonificacion'], 2),
+    'total_devengado'  => number_format($totalDevengado, 2),
+    'isss'             => number_format($data['isss'], 2),
+    'anticipo'         => number_format($data['anticipo'], 2),
+    'descuentos_jud'   => number_format($data['descuentos_judiciales'], 2),
+    'prestaciones'     => '0.00',
+    'isr'              => number_format($data['isr'], 2),
+    'total_descuentos' => number_format($data['total_descuentos'], 2),
+    'liquido'          => number_format($data['liquido_recibir'], 2),
+]];
+
+// 4) Generar HTML
 $html = "
 <!doctype html>
 <html lang='es'>
@@ -64,32 +83,42 @@ $html = "
       </tr>
     </thead>
     <tbody>
+";
+
+foreach ($filas as $f) {
+    $html .= "
       <tr>
-        <td>1</td>
-        <td>{$data['nombre']}</td>
-        <td>{$data['puesto']}</td>
-        <td>Q " . number_format($data['sueldo_base'],2) . "</td>
-        <td>{$data['horas_extras']}</td>
-        <td>Q " . number_format($totalHorasExtras,2) . "</td>
-        <td>Q " . number_format($data['comisiones'],2) . "</td>
-        <td>Q " . number_format($data['bonificacion'],2) . "</td>
-        <td>Q " . number_format($data['total_ingresos'],2) . "</td>
-        <td>Q " . number_format($data['isss'],2) . "</td>
-        <td>Q " . number_format($data['anticipos'],2) . "</td>
-        <td>Q " . number_format($data['descuentos_judiciales'],2) . "</td>
-        <td>Q 0.00</td>
-        <td>Q " . number_format($data['isr'],2) . "</td>
-        <td>Q " . number_format($data['total_descuentos'],2) . "</td>
-        <td><strong>Q " . number_format($data['liquido_recibir'],2) . "</strong></td>
+        <td>{$f['no']}</td>
+        <td>{$f['nombre']}</td>
+        <td>{$f['puesto']}</td>
+        <td>Q {$f['sueldo']}</td>
+        <td>{$f['horas_extras']}</td>
+        <td>Q {$f['valor_extra']}</td>
+        <td>Q {$f['comisiones']}</td>
+        <td>Q {$f['bonificacion']}</td>
+        <td>Q {$f['total_devengado']}</td>
+        <td>Q {$f['isss']}</td>
+        <td>Q {$f['anticipo']}</td>
+        <td>Q {$f['descuentos_jud']}</td>
+        <td>Q {$f['prestaciones']}</td>
+        <td>Q {$f['isr']}</td>
+        <td>Q {$f['total_descuentos']}</td>
+        <td><strong>Q {$f['liquido']}</strong></td>
       </tr>
+    ";
+}
+
+$html .= "
     </tbody>
   </table>
-  <p style='text-align:right; margin-top:10px;'>Fecha: {$data['fecha_registro']}</p>
+  <p style='text-align:right; margin-top:10px;'>
+    Fecha de registro: {$data['fecha_registro']}
+  </p>
 </body>
 </html>
 ";
 
-// 4) Configurar Dompdf y generar PDF en orientación horizontal (landscape)
+// 5) Renderizar y enviar PDF
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
 $dompdf = new Dompdf($options);
@@ -97,8 +126,8 @@ $dompdf->loadHtml($html);
 $dompdf->setPaper('letter', 'landscape');
 $dompdf->render();
 
-// 5) Enviar PDF al navegador
-header("Content-type: application/pdf");
+header("Content-Type: application/pdf");
 header("Content-Disposition: inline; filename=planilla_mensual.pdf");
 echo $dompdf->output();
 exit;
+?>

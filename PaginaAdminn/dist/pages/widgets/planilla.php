@@ -1,6 +1,10 @@
 <?php
 session_start();
 include 'conexion.php';
+
+
+
+
 ?>
 
 <!doctype html>
@@ -239,11 +243,13 @@ include 'conexion.php';
         <select id="empleado" name="nombre" class="form-select" required>
             <option value="">Selecciona un empleado</option>
             <?php
-            $empleados = mysqli_query($conn, "SELECT id, nombre, puesto, salario FROM empleados");
+            $empleados = mysqli_query($conn, "SELECT id, nombre, puesto, bonificacion, anticipo, salario FROM empleados");
             while ($emp = mysqli_fetch_assoc($empleados)) {
                 echo "<option value='" . htmlspecialchars($emp['nombre']) . "' 
                         data-puesto='" . htmlspecialchars($emp['puesto']) . "' 
-                        data-salario='" . htmlspecialchars($emp['salario']) . "'>" . htmlspecialchars($emp['nombre']) . "</option>";
+                        data-bonificacion='" . htmlspecialchars($emp['bonificacion']) . "' 
+                        data-anticipo='" . htmlspecialchars($emp['anticipo']) . "' 
+                        data-salario='" . htmlspecialchars($emp['salario']) . "'>" . htmlspecialchars($emp['id']) . "</option>";
             }
             ?>
         </select>
@@ -267,14 +273,15 @@ include 'conexion.php';
         <input type="number" step="0.01" name="comisiones" class="form-control">
     </div>
 
-    <div class="col-md-4">
-        <label class="form-label">Bonificación (Q)</label>
-        <input type="number" step="0.01" name="bonificacion" class="form-control">
-    </div>
-    <div class="col-md-4">
-        <label class="form-label">Anticipos (Q)</label>
-        <input type="number" step="0.01" name="anticipos" class="form-control">
-    </div>
+<div class="col-md-4">
+  <label class="form-label">Bonificación (Q)</label>
+  <input type="number" step="0.01" name="bonificacion" id="bonificacion" class="form-control">
+</div>
+<div class="col-md-4">
+  <label class="form-label">Anticipo (Q)</label>
+  <input type="number" step="0.01" name="anticipo"     id="anticipo"     class="form-control">
+</div>  
+
     <div class="col-md-4">
         <label class="form-label">Descuentos judiciales (Q)</label>
         <input type="number" step="0.01" name="descuentos_judiciales" class="form-control">
@@ -288,7 +295,7 @@ include 'conexion.php';
     <div class="col-12 text-end">
         <button type="submit" class="btn btn-primary">Generar Planilla</button>
     </div>
-    <a href="exportar_planilla_pdf.php" class="btn btn-danger mt-3">Exportar PDF</a>
+    <a href="exportar_planilla_general.php" class="btn btn-danger mt-3">Exportar PDF</a>
 </form>
 
 
@@ -298,14 +305,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const empleadoSelect = document.getElementById('empleado');
     const puestoInput = document.getElementById('puesto');
     const sueldoInput = document.getElementById('sueldo_base');
+    const bonificacionInput = document.getElementById('bonificacion');
+    const anticipoInput = document.getElementById('anticipo');
+
 
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const puesto = selectedOption.getAttribute('data-puesto');
         const salario = selectedOption.getAttribute('data-salario');
+        const bonificacion = selectedOption.getAttribute('data-bonificacion');
+       const anticipo = selectedOption.getAttribute('data-anticipo'); 
 
         puestoInput.value = puesto ? puesto : '';
         sueldoInput.value = salario ? salario : '';
+        bonificacionInput.value = bonificacion ? bonificacion : '';
+        anticipoInput.value = anticipo; 
     });
 });
 </script>
@@ -338,6 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <p><strong>Sueldo Base:</strong> Q<?= number_format($row['sueldo_base'], 2) ?></p>
         <p><strong>Horas Extras:</strong> <?= $row['horas_extras'] ?></p>
         <p><strong>Bonificación:</strong> Q<?= number_format($row['bonificacion'], 2) ?></p>
+        <p><strong>Anticipo:</strong> Q<?= number_format($row['anticipo'],  2) ?></p>
         <p><strong>Total Ingresos:</strong> Q<?= number_format($row['total_ingresos'], 2) ?></p>
         <p><strong>Total Descuentos:</strong> Q<?= number_format($row['total_descuentos'], 2) ?></p>
         <p><strong>Líquido a recibir:</strong> <strong>Q<?= number_format($row['liquido_recibir'], 2) ?></strong></p>
