@@ -225,106 +225,228 @@ x
       
 
 
+<main class="app-main">
+  <!-- Encabezado Gestión de Productos Externos -->
+  <div class="app-content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-6">
+          <h3 class="mb-0">Gestión de Productos</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-content">
+    <div class="container-fluid">
 
-      <!-- Contenido Principal DE LA PÁGINA -->
-      <main class="app-main">
-        <div class="app-content-header">
-          <div class="container-fluid">
+      <!-- Formulario de Productos Externos -->
+      <div class="card card-primary mb-4">
+        <div class="card-header"><h3 class="card-title">Agregar nuevo producto</h3></div>
+        <div class="card-body">
+          <form action="crear_producto.php" method="POST" enctype="multipart/form-data">
             <div class="row">
-              <div class="col-sm-6"><h3 class="mb-0">Gestión de Productos</h3></div>
+              <div class="col-md-6 mb-3">
+                <label>Nombre</label>
+                <input type="text" name="nombre" class="form-control" required/>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label>Categoría</label>
+                <input type="text" name="categoria" class="form-control" required/>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label>Precio ($)</label>
+                <input type="number" step="0.01" name="precio" class="form-control" required/>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label>Stock</label>
+                <input type="number" name="stock" class="form-control" required/>
+              </div>
+              <div class="col-md-12 mb-3">
+                <label>Descripción</label>
+                <textarea name="descripcion" class="form-control" required></textarea>
+              </div>
+              <div class="col-md-12 mb-3">
+                <label>Imagen</label>
+                <input type="file" name="imagen" class="form-control" accept="image/*"/>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success">Guardar</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lista de Productos Externos desplegable -->
+      <div class="card card-outline card-secondary mb-5">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="card-title mb-0">
+            <a href="#productosCollapse" data-bs-toggle="collapse" aria-expanded="true">Lista de productos</a>
+          </h3>
+          <div class="card-tools">
+            <button class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#productosCollapse" aria-expanded="true">
+              <i class="fas fa-chevron-up"></i>
+            </button>
+          </div>
+        </div>
+        <div id="productosCollapse" class="collapse show">
+          <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>ID</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Imagen</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php
+                  $productos = mysqli_query($conn,"SELECT * FROM productos ORDER BY fecha_creacion DESC");
+                  while($p = mysqli_fetch_assoc($productos)):
+                ?>
+                <tr>
+                  <td><?= $p['id']?></td>
+                  <td><?=htmlspecialchars($p['nombre'])?></td>
+                  <td><?=htmlspecialchars($p['categoria'])?></td>
+                  <td>$ <?=number_format($p['precio'],2)?></td>
+                  <td><?=$p['stock']?></td>
+                  <td>
+                    <?php if($p['imagen']):?><img src="uploads/<?=$p['imagen']?>" width="60"/><?php else:?>Sin imagen<?php endif;?>
+                  </td>
+                  <td>
+                    <a href="editar_producto.php?id=<?=$p['id']?>" class="btn btn-warning btn-sm">Editar</a>
+                    <a href="eliminar_producto.php?id=<?=$p['id']?>" onclick="return confirm('¿Eliminar este producto?')" class="btn btn-danger btn-sm">Eliminar</a>
+                  </td>
+                </tr>
+                <?php endwhile;?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Encabezado Gestión de Productos Internos -->
+      <div class="app-content-header mt-5">
+        <div class="container-fluid">
+          <div class="row">
+            <div class="col-sm-6">
+              <h3 class="mb-0">Gestión de Productos Internos</h3>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="app-content">
-          <div class="container-fluid">
-
-            <!-- Formulario -->
-            <div class="card card-primary mb-4">
-              <div class="card-header"><h3 class="card-title">Agregar nuevo producto</h3></div>
-              <div class="card-body">
-                <form action="crear_producto.php" method="POST" enctype="multipart/form-data">
-                  <div class="row">
-                    <div class="col-md-6 mb-3">
-                      <label>Nombre</label>
-                      <input type="text" name="nombre" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Categoría</label>
-                      <input type="text" name="categoria" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Precio ($)</label>
-                      <input type="number" step="0.01" name="precio" class="form-control" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label>Stock</label>
-                      <input type="number" name="stock" class="form-control" required />
-                    </div>
-                    <div class="col-md-12 mb-3">
-                      <label>Descripción</label>
-                      <textarea name="descripcion" class="form-control" required></textarea>
-                    </div>
-                    <div class="col-md-12 mb-3">
-                      <label>Imagen</label>
-                      <input type="file" name="imagen" class="form-control" accept="image/*" />
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-success">Guardar</button>
-                </form>
+      <!-- Formulario de Productos Internos -->
+      <div class="card card-primary mb-4">
+        <div class="card-header"><h3 class="card-title">Agregar nuevo producto interno</h3></div>
+        <div class="card-body">
+          <form id="nuevo-interno-form" action="crear_producto_interno.php" method="POST">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label>Nombre</label>
+                <input type="text" name="nombre" class="form-control" required/>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label>Cuenta contable</label>
+                <select id="cuenta_id" name="cuenta_id" class="form-control" required>
+                  <option></option>
+                  <?php
+                    $cuentas_list = [];
+                    $res = mysqli_query($conn,"SELECT id,nombre FROM cuentas_contables ORDER BY nombre");
+                    while($c = mysqli_fetch_assoc($res)){
+                      $cuentas_list[] = $c;
+                      echo '<option value="'.$c['id'].'">'.htmlspecialchars($c['nombre']).'</option>';
+                    }
+                  ?>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label>Precio</label>
+                <input type="number" step="0.01" name="precios" class="form-control" required/>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label>Cantidad</label>
+                <input type="number" name="cantidad" class="form-control" required/>
+              </div>
+              <div class="col-md-12 mb-3">
+                <label>Descripción</label>
+                <textarea name="descripcion" class="form-control"></textarea>
               </div>
             </div>
+            <button type="submit" class="btn btn-success">Guardar Interno</button>
+          </form>
+        </div>
+      </div>
 
-            <!-- Tabla -->
-            <div class="card card-outline card-secondary">
-              <div class="card-header"><h3 class="card-title">Lista de productos</h3></div>
-              <div class="card-body table-responsive">
-                <table class="table table-bordered table-striped">
-                  <thead class="table-dark">
-                    <tr>
-                      <th>ID</th>
-                      <th>Nombre</th>
-                      <th>Categoría</th>
-                      <th>Precio</th>
-                      <th>Stock</th>
-                      <th>Imagen</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php
-                    $productos = mysqli_query($conn, "SELECT * FROM productos ORDER BY fecha_creacion DESC");
-                    while ($row = mysqli_fetch_assoc($productos)):
-                    ?>
-                      <tr>
-                        <td><?= $row['id'] ?></td>
-                        <td><?= $row['nombre'] ?></td>
-                        <td><?= $row['categoria'] ?></td>
-                        <td>$ <?= number_format($row['precio'], 2) ?></td>
-                        <td><?= $row['stock'] ?></td>
-                        <td>
-                          <?php if ($row['imagen']): ?>
-                            <img src="uploads/<?= $row['imagen'] ?>" width="60" />
-                          <?php else: ?>
-                            Sin imagen
-                          <?php endif; ?>
-                        </td>
-                        <td>
-                          <a href="editar_producto.php?id=<?= $row['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
-                          <a href="eliminar_producto.php?id=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este producto?')">Eliminar</a>
-                        </td>
-                      </tr>
-                    <?php endwhile; ?>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
+      <!-- Lista de Productos Internos con inline-edit y delete AJAX -->
+      <div class="card card-outline card-secondary">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="card-title mb-0">
+            <a href="#internosCollapse" data-bs-toggle="collapse" aria-expanded="true">Lista de productos internos</a>
+          </h3>
+          <div class="card-tools">
+            <button class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#internosCollapse" aria-expanded="true">
+              <i class="fas fa-chevron-up"></i>
+            </button>
           </div>
         </div>
-      </main>
+        <div id="internosCollapse" class="collapse show">
+          <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>ID</th><th>Nombre</th><th>Cuenta</th><th>Precio</th><th>Cantidad</th><th>Descripción</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php
+                  $internos = mysqli_query($conn, "
+                    SELECT g.id,g.nombre,g.cuenta_id,c.nombre AS cuenta,
+                           g.precios,g.cantidad,g.descripcion
+                    FROM gestion_productos_internos g
+                    JOIN cuentas_contables c ON g.cuenta_id=c.id
+                    ORDER BY g.id DESC
+                  ");
+                  while($i = mysqli_fetch_assoc($internos)):
+                ?>
+                <tr class="display-row" data-id="<?=$i['id']?>">
+                  <td><?=$i['id']?></td>
+                  <td><?=htmlspecialchars($i['nombre'])?></td>
+                  <td><?=htmlspecialchars($i['cuenta'])?></td>
+                  <td>$ <?=number_format($i['precios'],2)?></td>
+                  <td><?=$i['cantidad']?></td>
+                  <td><?=htmlspecialchars($i['descripcion'])?></td>
+                  <td>
+                    <button class="btn btn-warning btn-sm edit-interno-btn">Editar</button>
+                    <button class="btn btn-danger btn-sm delete-interno-btn">Eliminar</button>
+                  </td>
+                </tr>
+                <tr class="edit-row" data-id="<?=$i['id']?>" style="display:none;">
+                  <td><?=$i['id']?></td>
+                  <td><input type="text" class="form-control nombre-input" value="<?=htmlspecialchars($i['nombre'])?>"/></td>
+                  <td>
+                    <select class="form-control cuenta-select">
+                      <?php foreach($cuentas_list as $c):?>
+                        <option value="<?=$c['id']?>" <?=$c['id']==$i['cuenta_id']?'selected':''?>>
+                          <?=htmlspecialchars($c['nombre'])?>
+                        </option>
+                      <?php endforeach;?>
+                    </select>
+                  </td>
+                  <td><input type="number" step="0.01" class="form-control precios-input" value="<?=$i['precios']?>"/></td>
+                  <td><input type="number" class="form-control cantidad-input" value="<?=$i['cantidad']?>"/></td>
+                  <td><input type="text" class="form-control descripcion-input" value="<?=htmlspecialchars($i['descripcion'])?>"/></td>
+                  <td>
+                    <button class="btn btn-success btn-sm save-interno-btn">Guardar</button>
+                    <button class="btn btn-secondary btn-sm cancel-interno-btn">Cancelar</button>
+                  </td>
+                </tr>
+                <?php endwhile;?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-
+    </div>
+  </div>
+</main>
 
 
 
@@ -357,5 +479,98 @@ x
       }
     </script>
     <?php endif; ?>
+<!-- Scripts al final de tu plantilla, justo antes de </body> -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function(){
+  // Inicializa Select2 en el formulario de creación
+  $('#cuenta_id').select2({
+    placeholder: 'Seleccione cuenta',
+    allowClear: true,
+    width: '100%'
+  });
+
+  // Edit inline
+  $(document).on('click', '.edit-interno-btn', function(){
+    var id = $(this).closest('tr.display-row').data('id');
+    $('tr.display-row[data-id="'+id+'"]').hide();
+    var row = $('tr.edit-row[data-id="'+id+'"]').show();
+    row.find('.cuenta-select').select2({ placeholder:'Seleccione cuenta', allowClear:true, width:'100%' });
+  });
+
+  // Cancel inline
+  $(document).on('click', '.cancel-interno-btn', function(){
+    var id = $(this).closest('tr.edit-row').data('id');
+    $('tr.edit-row[data-id="'+id+'"]').hide();
+    $('tr.display-row[data-id="'+id+'"]').show();
+  });
+
+  // Save inline via AJAX
+  $(document).on('click', '.save-interno-btn', function(){
+    var editRow    = $(this).closest('tr.edit-row'),
+        id         = editRow.data('id'),
+        nombre     = editRow.find('.nombre-input').val(),
+        cuenta_id  = editRow.find('.cuenta-select').val(),
+        precios    = editRow.find('.precios-input').val(),
+        cantidad   = editRow.find('.cantidad-input').val(),
+        descripcion= editRow.find('.descripcion-input').val();
+
+    $.ajax({
+      url: 'editar_producto_interno.php',
+      method: 'POST',
+      dataType: 'json',
+      data: { id, nombre, cuenta_id, precios, cantidad, descripcion }
+    })
+    .done(function(r){
+      if(r.success){
+        var d   = r.data,
+            disp= $('tr.display-row[data-id="'+d.id+'"]');
+        disp.find('td:eq(1)').text(d.nombre);
+        disp.find('td:eq(2)').text(d.cuenta);
+        disp.find('td:eq(3)').text('$ '+parseFloat(d.precios).toFixed(2));
+        disp.find('td:eq(4)').text(d.cantidad);
+        disp.find('td:eq(5)').text(d.descripcion);
+        editRow.hide();
+        disp.show();
+      } else {
+        alert('Error: '+r.message);
+      }
+    })
+    .fail(function(xhr){
+      console.error('Server error:', xhr.responseText);
+      alert('Error de servidor, revisa la consola.');
+    });
+  });
+
+  // Delete via AJAX
+  $(document).on('click', '.delete-interno-btn', function(){
+    var row = $(this).closest('tr.display-row'),
+        id  = row.data('id');
+    if(!confirm('¿Eliminar este producto interno?')) return;
+
+    $.ajax({
+      url: 'eliminar_producto_interno.php',
+      method: 'POST',
+      dataType: 'json',
+      data: { id: id }
+    })
+    .done(function(res){
+      if(res.success){
+        $('tr.display-row[data-id="'+id+'"]').remove();
+        $('tr.edit-row[data-id="'+id+'"]').remove();
+      } else {
+        alert('Error al eliminar: '+res.message);
+      }
+    })
+    .fail(function(xhr){
+      console.error('Delete error:', xhr.responseText);
+      alert('Error de servidor al eliminar.');
+    });
+  });
+});
+</script>
+
+
   </body>
 </html>
