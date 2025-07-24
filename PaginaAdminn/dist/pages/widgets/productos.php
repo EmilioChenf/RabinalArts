@@ -458,119 +458,180 @@ x
       </footer>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
-    <script src="../../../dist/js/adminlte.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Dependencias generales -->
+<script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+<script src="../../../dist/js/adminlte.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <?php if (isset($_GET['mensaje'])): ?>
-    <script>
-      let mensaje = "<?= $_GET['mensaje'] ?>";
-      if (mensaje === "creado") {
-        Swal.fire({ icon: 'success', title: 'Producto agregado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "actualizado") {
-        Swal.fire({ icon: 'success', title: 'Producto actualizado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "eliminado") {
-        Swal.fire({ icon: 'success', title: 'Producto eliminado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "error") {
-        Swal.fire({ icon: 'error', title: 'Ocurrió un error', timer: 2000, showConfirmButton: false });
-      }
-    </script>
-    <?php endif; ?>
-<!-- Scripts al final de tu plantilla, justo antes de </body> -->
+<?php if (isset($_GET['mensaje'])): ?>
+<script>
+  let mensaje = "<?= $_GET['mensaje'] ?>";
+  if (mensaje === "creado") {
+    Swal.fire({ icon: 'success', title: 'Producto agregado', timer: 1500, showConfirmButton: false });
+  } else if (mensaje === "actualizado") {
+    Swal.fire({ icon: 'success', title: 'Producto actualizado', timer: 1500, showConfirmButton: false });
+  } else if (mensaje === "eliminado") {
+    Swal.fire({ icon: 'success', title: 'Producto eliminado', timer: 1500, showConfirmButton: false });
+  } else if (mensaje === "error") {
+    Swal.fire({ icon: 'error', title: 'Ocurrió un error', timer: 2000, showConfirmButton: false });
+  }
+</script>
+<?php endif; ?>
+
+<!-- jQuery y Select2 (necesarios para nuestro script) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- Exponer en JS el listado de cuentas contables -->
 <script>
-$(document).ready(function(){
-  // Inicializa Select2 en el formulario de creación
+  var cuentas_list = <?= json_encode($cuentas_list, JSON_HEX_TAG) ?>;
+</script>
+
+<!-- Nuestro código personalizado -->
+<script>
+$(function(){
+  // Inicializar Select2
   $('#cuenta_id').select2({
     placeholder: 'Seleccione cuenta',
     allowClear: true,
     width: '100%'
   });
 
-  // Edit inline
-  $(document).on('click', '.edit-interno-btn', function(){
-    var id = $(this).closest('tr.display-row').data('id');
-    $('tr.display-row[data-id="'+id+'"]').hide();
-    var row = $('tr.edit-row[data-id="'+id+'"]').show();
-    row.find('.cuenta-select').select2({ placeholder:'Seleccione cuenta', allowClear:true, width:'100%' });
-  });
-
-  // Cancel inline
-  $(document).on('click', '.cancel-interno-btn', function(){
-    var id = $(this).closest('tr.edit-row').data('id');
-    $('tr.edit-row[data-id="'+id+'"]').hide();
-    $('tr.display-row[data-id="'+id+'"]').show();
-  });
-
-  // Save inline via AJAX
-  $(document).on('click', '.save-interno-btn', function(){
-    var editRow    = $(this).closest('tr.edit-row'),
-        id         = editRow.data('id'),
-        nombre     = editRow.find('.nombre-input').val(),
-        cuenta_id  = editRow.find('.cuenta-select').val(),
-        precios    = editRow.find('.precios-input').val(),
-        cantidad   = editRow.find('.cantidad-input').val(),
-        descripcion= editRow.find('.descripcion-input').val();
-
-    $.ajax({
-      url: 'editar_producto_interno.php',
-      method: 'POST',
-      dataType: 'json',
-      data: { id, nombre, cuenta_id, precios, cantidad, descripcion }
+  // Inline edit
+  $(document)
+    .on('click', '.edit-interno-btn', function(){
+      var id = $(this).closest('tr.display-row').data('id');
+      $('tr.display-row[data-id="'+id+'"]').hide();
+      var row = $('tr.edit-row[data-id="'+id+'"]').show();
+      row.find('.cuenta-select').select2({ placeholder:'Seleccione cuenta', allowClear:true, width:'100%' });
     })
-    .done(function(r){
-      if(r.success){
-        var d   = r.data,
-            disp= $('tr.display-row[data-id="'+d.id+'"]');
-        disp.find('td:eq(1)').text(d.nombre);
-        disp.find('td:eq(2)').text(d.cuenta);
-        disp.find('td:eq(3)').text('$ '+parseFloat(d.precios).toFixed(2));
-        disp.find('td:eq(4)').text(d.cantidad);
-        disp.find('td:eq(5)').text(d.descripcion);
-        editRow.hide();
-        disp.show();
-      } else {
-        alert('Error: '+r.message);
-      }
+    .on('click', '.cancel-interno-btn', function(){
+      var id = $(this).closest('tr.edit-row').data('id');
+      $('tr.edit-row[data-id="'+id+'"]').hide();
+      $('tr.display-row[data-id="'+id+'"]').show();
     })
-    .fail(function(xhr){
-      console.error('Server error:', xhr.responseText);
-      alert('Error de servidor, revisa la consola.');
+    .on('click', '.save-interno-btn', function(){
+      var editRow     = $(this).closest('tr.edit-row'),
+          id          = editRow.data('id'),
+          nombre      = editRow.find('.nombre-input').val(),
+          cuenta_id   = editRow.find('.cuenta-select').val(),
+          precios     = editRow.find('.precios-input').val(),
+          cantidad    = editRow.find('.cantidad-input').val(),
+          descripcion = editRow.find('.descripcion-input').val();
+
+      $.post('editar_producto_interno.php',
+        { id, nombre, cuenta_id, precios, cantidad, descripcion },
+        function(r){
+          if(!r.success){
+            return Swal.fire({ icon: 'error', title: 'Error', text: r.message });
+          }
+          var d = r.data,
+              disp = $('tr.display-row[data-id="'+d.id+'"]');
+          disp.find('td:eq(1)').text(d.nombre);
+          disp.find('td:eq(2)').text(d.cuenta);
+          disp.find('td:eq(3)').text('$ '+parseFloat(d.precios).toFixed(2));
+          disp.find('td:eq(4)').text(d.cantidad);
+          disp.find('td:eq(5)').text(d.descripcion);
+          editRow.hide();
+          disp.show();
+        },
+        'json'
+      ).fail(function(xhr){
+        console.error(xhr.responseText);
+        Swal.fire({ icon: 'error', title: 'Error de servidor' });
+      });
+    })
+    .on('click', '.delete-interno-btn', function(){
+      var row = $(this).closest('tr.display-row'),
+          id  = row.data('id');
+      if(!confirm('¿Eliminar este producto interno?')) return;
+      $.post('eliminar_producto_interno.php',
+        { id: id },
+        function(res){
+          if(res.success){
+            $('tr.display-row[data-id="'+id+'"]').remove();
+            $('tr.edit-row[data-id="'+id+'"]').remove();
+          } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+          }
+        },
+        'json'
+      ).fail(function(xhr){
+        console.error(xhr.responseText);
+        Swal.fire({ icon: 'error', title: 'Error de servidor' });
+      });
     });
-  });
 
-  // Delete via AJAX
-  $(document).on('click', '.delete-interno-btn', function(){
-    var row = $(this).closest('tr.display-row'),
-        id  = row.data('id');
-    if(!confirm('¿Eliminar este producto interno?')) return;
-
+  // Submit nuevo producto interno
+  $('#nuevo-interno-form').on('submit', function(e){
+    e.preventDefault();
+    var form = $(this);
     $.ajax({
-      url: 'eliminar_producto_interno.php',
+      url: form.attr('action'),
       method: 'POST',
       dataType: 'json',
-      data: { id: id }
+      data: form.serialize()
     })
     .done(function(res){
-      if(res.success){
-        $('tr.display-row[data-id="'+id+'"]').remove();
-        $('tr.edit-row[data-id="'+id+'"]').remove();
-      } else {
-        alert('Error al eliminar: '+res.message);
+      if(!res.success){
+        return Swal.fire({ icon: 'error', title: 'Error', text: res.message });
       }
+      // Alerta de éxito
+      Swal.fire({ icon: 'success', title: '¡Producto agregado!', timer: 1500, showConfirmButton: false });
+
+      var d = res.data;
+      // Fila display
+      var filaDisp = `
+        <tr class="display-row" data-id="${d.id}">
+          <td>${d.id}</td>
+          <td>${d.nombre}</td>
+          <td>${d.cuenta}</td>
+          <td>$ ${parseFloat(d.precios).toFixed(2)}</td>
+          <td>${d.cantidad}</td>
+          <td>${d.descripcion}</td>
+          <td>
+            <button class="btn btn-warning btn-sm edit-interno-btn">Editar</button>
+            <button class="btn btn-danger btn-sm delete-interno-btn">Eliminar</button>
+          </td>
+        </tr>`;
+      // Fila edit inline
+      var filaEdit = `
+        <tr class="edit-row" data-id="${d.id}" style="display:none;">
+          <td>${d.id}</td>
+          <td><input type="text" class="form-control nombre-input" value="${d.nombre}"></td>
+          <td>
+            <select class="form-control cuenta-select">
+              ${
+                cuentas_list.map(c =>
+                  `<option value="${c.id}" ${c.nombre===d.cuenta?'selected':''}>${c.nombre}</option>`
+                ).join('')
+              }
+            </select>
+          </td>
+          <td><input type="number" step="0.01" class="form-control precios-input" value="${d.precios}"></td>
+          <td><input type="number" class="form-control cantidad-input" value="${d.cantidad}"></td>
+          <td><input type="text" class="form-control descripcion-input" value="${d.descripcion}"></td>
+          <td>
+            <button class="btn btn-success btn-sm save-interno-btn">Guardar</button>
+            <button class="btn btn-secondary btn-sm cancel-interno-btn">Cancelar</button>
+          </td>
+        </tr>`;
+      // Insertar y limpiar
+      $('#internosCollapse table tbody')
+        .prepend(filaEdit)
+        .prepend(filaDisp);
+      form[0].reset();
+      $('#cuenta_id').val(null).trigger('change');
     })
     .fail(function(xhr){
-      console.error('Delete error:', xhr.responseText);
-      alert('Error de servidor al eliminar.');
+      console.error(xhr.responseText);
+      Swal.fire({ icon: 'error', title: 'Error de servidor' });
     });
   });
 });
 </script>
-
 
   </body>
 </html>

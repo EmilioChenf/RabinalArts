@@ -1,32 +1,26 @@
 <?php
-// editar_producto_interno.php
+// crear_producto_interno.php
 include 'conexion.php';
-// Evita que se impriman warnings/HTML antes del JSON
+header('Content-Type: application/json; charset=utf-8');
 ini_set('display_errors', 0);
 error_reporting(0);
-header('Content-Type: application/json; charset=utf-8');
 
 // Recoge y sanea
-$id          = (int) $_POST['id'];
 $nombre      = mysqli_real_escape_string($conn, $_POST['nombre']);
 $cuenta_id   = (int) $_POST['cuenta_id'];
 $precios     = (float) $_POST['precios'];
 $cantidad    = (int) $_POST['cantidad'];
 $descripcion = mysqli_real_escape_string($conn, $_POST['descripcion']);
 
-// Ejecuta la actualización
-$sql = "UPDATE gestion_productos_internos
-        SET nombre='$nombre',
-            cuenta_id=$cuenta_id,
-            precios=$precios,
-            cantidad=$cantidad,
-            descripcion='$descripcion'
-        WHERE id=$id";
+// Inserta
+$sql = "INSERT INTO gestion_productos_internos (nombre, cuenta_id, precios, cantidad, descripcion)
+        VALUES ('$nombre', $cuenta_id, $precios, $cantidad, '$descripcion')";
 
 if (mysqli_query($conn, $sql)) {
-    // Trae el nombre de cuenta actualizado
-    $res = mysqli_query($conn, "SELECT nombre FROM cuentas_contables WHERE id=$cuenta_id");
-    $c   = mysqli_fetch_assoc($res);
+    $id = mysqli_insert_id($conn);
+    // Busca el nombre de la cuenta
+    $r = mysqli_query($conn, "SELECT nombre FROM cuentas_contables WHERE id=$cuenta_id");
+    $c = mysqli_fetch_assoc($r);
 
     echo json_encode([
       'success' => true,
