@@ -1,40 +1,6 @@
 <?php
-include 'conexion.php';
-
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $result = mysqli_query($conn, "SELECT * FROM productos WHERE id = $id");
-    $producto = mysqli_fetch_assoc($result);
-}
-
-if (isset($_POST['actualizar'])) {
-    $id = $_POST['id'];
-    $nombre = $_POST['nombre'];
-    $descripcion = $_POST['descripcion'];
-    $categoria = $_POST['categoria'];
-    $precio = $_POST['precio'];
-    $stock = $_POST['stock'];
-
-    if ($_FILES['imagen']['name']) {
-        $nombreImagen = uniqid() . '_' . basename($_FILES['imagen']['name']);
-        move_uploaded_file($_FILES['imagen']['tmp_name'], "uploads/$nombreImagen");
-        $imagen = ", imagen = '$nombreImagen'";
-    } else {
-        $imagen = "";
-    }
-
-    mysqli_query($conn, "UPDATE productos SET 
-        nombre='$nombre', 
-        descripcion='$descripcion', 
-        categoria='$categoria', 
-        precio='$precio', 
-        stock='$stock'
-        $imagen
-        WHERE id=$id");
-
-    header("Location: productos.php?mensaje=actualizado");
-    exit;
-}
+include 'conexion.php'; // Asegúrate que esta ruta sea correcta
+session_start();
 ?>
 
 <!doctype html>
@@ -143,7 +109,7 @@ if (isset($_POST['actualizar'])) {
 
 
 
-            <li class="nav-item menu-open">
+              <li class="nav-item menu-open">
                 <a href="#" class="nav-link active">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>
@@ -182,15 +148,12 @@ if (isset($_POST['actualizar'])) {
                     </a>
                   </li>
 
-
-
                   <li class="nav-item">
                     <a href="../widgets/venta_factura.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Generar Facturas</p>
                     </a>
                   </li>
-
 
 
                   <li class="nav-item">
@@ -208,7 +171,6 @@ if (isset($_POST['actualizar'])) {
                     </a>
                   </li>
 
-
                     <li class="nav-item">
                     <a href="../widgets/empleados.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
@@ -222,6 +184,8 @@ if (isset($_POST['actualizar'])) {
                       <p>Gestion de cuentas</p>
                     </a>
                   </li>
+
+
 
 
                                 <!--   <li class="nav-item">
@@ -263,10 +227,9 @@ if (isset($_POST['actualizar'])) {
 
 
 
-
-                  
                 </ul>
               </li>
+
 
 
             </ul>
@@ -280,83 +243,109 @@ if (isset($_POST['actualizar'])) {
 
 
       
+      <main class="app-main p-4">
+        <div class="container-fluid">
+          <h3 class="mb-4 text-center">Información de Compras Internas Registradas</h3>
 
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>ID</th>
+                  <th>Forma de Pago</th>
+                  <th>Periodo</th>
+                  <th>Producto</th>
+                  <th>Cuenta Contable</th>
+                  <th>Valor IVA</th>
+                  <th>Valor sin IVA</th>
+                  <th>Total sin IVA</th>
+                  <th>Total IVA</th>
+                  <th>Total General</th>
+                  <th>Fecha Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php
+                $sql = "SELECT 
+                          id,
+                          forma_pago,
+                          periodo_pago,
+                          nombre_producto,
+                          numero_cuenta_contable,
+                          valor_iva,
+                          valor_sin_iva,
+                          total_producto_sin_iva,
+                          total_iva,
+                          total_sin_iva_general,
+                          total_general,
+                          fecha_registro
+                        FROM compras_internas
+                        ORDER BY fecha_registro DESC";
+                $res = mysqli_query($conn, $sql);
+                while ($row = mysqli_fetch_assoc($res)):
+                ?>
+                  <tr>
+                    <td><?= $row['id'] ?></td>
+                    <td><?= htmlspecialchars($row['forma_pago']) ?></td>
+                    <td><?= htmlspecialchars($row['periodo_pago']) ?></td>
+                    <td><?= htmlspecialchars($row['nombre_producto']) ?></td>
+                    <td><?= htmlspecialchars($row['numero_cuenta_contable']) ?></td>
+                    <td><?= number_format($row['valor_iva'], 2) ?></td>
+                    <td><?= number_format($row['valor_sin_iva'], 2) ?></td>
+                    <td><?= number_format($row['total_producto_sin_iva'], 2) ?></td>
+                    <td><?= number_format($row['total_iva'], 2) ?></td>
+                    <td><?= number_format($row['total_general'], 2) ?></td>
+                    <td><?= $row['fecha_registro'] ?></td>
+                  </tr>
+                <?php endwhile; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
 
-
-<head>
-    <meta charset="UTF-8">
-    <title>Editar Producto</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-<div class="container mt-5">
-    <h2 class="mb-4">Editar Producto</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="id" value="<?= $producto['id'] ?>">
-        <div class="mb-3">
-            <label class="form-label">Nombre</label>
-            <input type="text" name="nombre" class="form-control" value="<?= $producto['nombre'] ?>" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Descripción</label>
-            <textarea name="descripcion" class="form-control" required><?= $producto['descripcion'] ?></textarea>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Categoría</label>
-            <input type="text" name="categoria" class="form-control" value="<?= $producto['categoria'] ?>" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Precio</label>
-            <input type="number" step="0.01" name="precio" class="form-control" value="<?= $producto['precio'] ?>" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Stock</label>
-            <input type="number" name="stock" class="form-control" value="<?= $producto['stock'] ?>" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Imagen actual</label><br>
-            <?php if ($producto['imagen']): ?>
-                <img src="uploads/<?= $producto['imagen'] ?>" width="80">
-            <?php else: ?>
-                No hay imagen
-            <?php endif; ?>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Cambiar imagen</label>
-            <input type="file" name="imagen" class="form-control" accept="image/*">
-        </div>
-        <button type="submit" name="actualizar" class="btn btn-primary">Guardar Cambios</button>
-        <a href="productos.php" class="btn btn-secondary">Cancelar</a>
-    </form>
-</div>
-
-  <!-- Footer -->
-  <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">Sistema Inventario</div>
-        <strong>Copyright &copy; <?= date('Y') ?> <a href="#">TuEmpresa</a>.</strong> Todos los derechos reservados.
+      <!--end::App Main-->
+      <!--begin::Footer-->
+      <footer class="app-footer">
+        <!--begin::To the end-->
+        <div class="float-end d-none d-sm-inline">Anything you want</div>
+        <!--end::To the end-->
+        <!--begin::Copyright-->
+        <strong>
+          Copyright &copy; 2014-2024&nbsp;
+          <a href="https://adminlte.io" class="text-decoration-none"></a>.
+        </strong>
+        All rights reserved.
+        <!--end::Copyright-->
       </footer>
+      <!--end::Footer-->
     </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+    <!--end::App Wrapper-->
+    <!--begin::Script-->
+    <!--begin::Third Party Plugin(OverlayScrollbars)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/browser/overlayscrollbars.browser.es6.min.js"
+      integrity="sha256-dghWARbRe2eLlIJ56wNB+b760ywulqK3DzZYEpsg2fQ="
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+      integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
+      integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
+      crossorigin="anonymous"
+    ></script>
+    <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../../../dist/js/adminlte.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
 
-    <?php if (isset($_GET['mensaje'])): ?>
-    <script>
-      let mensaje = "<?= $_GET['mensaje'] ?>";
-      if (mensaje === "creado") {
-        Swal.fire({ icon: 'success', title: 'Producto agregado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "actualizado") {
-        Swal.fire({ icon: 'success', title: 'Producto actualizado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "eliminado") {
-        Swal.fire({ icon: 'success', title: 'Producto eliminado', timer: 1500, showConfirmButton: false });
-      } else if (mensaje === "error") {
-        Swal.fire({ icon: 'error', title: 'Ocurrió un error', timer: 2000, showConfirmButton: false });
-      }
-    </script>
-    <?php endif; ?>
+    <!--end::OverlayScrollbars Configure-->
+    <!--end::Script-->
   </body>
+  <!--end::Body-->
 </html>

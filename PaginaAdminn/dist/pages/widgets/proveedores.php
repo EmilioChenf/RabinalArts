@@ -234,7 +234,8 @@ if (isset($_GET['editar'])) {
                   </li>          
                   
                   
-                  <li class="nav-item">
+
+                                <!--   <li class="nav-item">
                     <a href="../widgets/inventario.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>inventario</p>
@@ -247,13 +248,30 @@ if (isset($_GET['editar'])) {
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Clasificación de inventario</p>
                     </a>
-                  </li>
-                  <li class="nav-item">
+                  </li>-->
+                                    <li class="nav-item">
                     <a href="../widgets/docuemnetación.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Registro de Compras (Internas)</p>
                     </a>
                   </li>
+
+
+
+                                              <li class="nav-item">
+                    <a href="../widgets/infro_registro_compras.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Infro Registro de Compras (Internas)</p>
+                    </a>
+                  </li>
+
+                                              <li class="nav-item">
+                    <a href="../widgets/factura_comrpas.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>IFactura de Compras (Internas)</p>
+                    </a>
+                  </li>
+
 
 
 

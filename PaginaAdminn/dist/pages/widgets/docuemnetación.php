@@ -239,7 +239,7 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
                   </li>
 
 
-                                    <li class="nav-item">
+                                <!--   <li class="nav-item">
                     <a href="../widgets/inventario.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>inventario</p>
@@ -252,13 +252,31 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Clasificación de inventario</p>
                     </a>
-                  </li>
-                  <li class="nav-item">
+                  </li>-->
+                                    <li class="nav-item">
                     <a href="../widgets/docuemnetación.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Registro de Compras (Internas)</p>
                     </a>
                   </li>
+
+
+
+                                              <li class="nav-item">
+                    <a href="../widgets/infro_registro_compras.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Infro Registro de Compras (Internas)</p>
+                    </a>
+                  </li>
+
+                                              <li class="nav-item">
+                    <a href="../widgets/factura_comrpas.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>IFactura de Compras (Internas)</p>
+                    </a>
+                  </li>
+
+
 
 
 
@@ -274,72 +292,72 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
         <!--end::Sidebar Wrapper-->
       </aside>
       <!--end::Sidebar-->
-      <!--begin::App Main-->    <main class="app-main p-4">
-      <div class="container">
-        <h3 class="mb-4">Registro de Compras Internas</h3>
+        <!--begin::App Main-->    <main class="app-main p-4">
+        <div class="container">
+          <h3 class="mb-4">Registro de Compras Internas</h3>
 
-        <?php if (isset($_GET['success'])): ?>
-          <script>
-            Swal.fire({
-              icon: 'success',
-              title: '¡Compra registrada!',
-              showConfirmButton: false,
-              timer: 1500
-            });
-          </script>
-        <?php endif; ?>
+          <?php if (isset($_GET['success'])): ?>
+            <script>
+              Swal.fire({
+                icon: 'success',
+                title: '¡Compra registrada!',
+                showConfirmButton: false,
+                timer: 1500
+              });
+            </script>
+          <?php endif; ?>
 
-        <form id="comprasForm" method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
-          <div class="col-md-4">
-            <label class="form-label">Forma de pago</label>
-            <select name="forma_pago" class="form-select" required>
-              <?php foreach ($formas_pago as $f): ?>
-                <option><?= htmlspecialchars($f) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Periodo de compra</label>
-            <input type="text" name="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Nombre del producto comprado</label>
-            <input type="text" name="nombre_producto" class="form-control" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Número de cuenta contable</label>
-            <input type="text" name="numero_cuenta_contable" class="form-control" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Valor del IVA</label>
-            <input type="number" step="0.01" name="valor_iva" id="valor_iva" class="form-control" value="0" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Valor sin IVA</label>
-            <input type="number" step="0.01" name="valor_sin_iva" id="valor_sin_iva" class="form-control" value="0" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total del producto sin IVA</label>
-            <input type="number" step="0.01" name="total_producto_sin_iva" id="total_producto_sin_iva" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total del IVA</label>
-            <input type="number" step="0.01" name="total_iva" id="total_iva" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total sin IVA</label>
-            <input type="number" step="0.01" name="total_sin_iva_general" id="total_sin_iva_general" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total general</label>
-            <input type="number" step="0.01" name="total_general" id="total_general" class="form-control" readonly>
-          </div>
-          <div class="col-12 text-end">
-            <button name="save_invoice" type="submit" class="btn btn-success">💾 Registrar Compra</button>
-          </div>
-        </form>
-      </div>
-    </main>
+          <form id="comprasForm" method="POST" class="row g-3 border p-4 rounded bg-light shadow-sm">
+            <div class="col-md-4">
+              <label class="form-label">Forma de pago</label>
+              <select name="forma_pago" class="form-select" required>
+                <?php foreach ($formas_pago as $f): ?>
+                  <option><?= htmlspecialchars($f) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Periodo de compra</label>
+              <input type="text" name="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Nombre del producto comprado</label>
+              <input type="text" name="nombre_producto" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Número de cuenta contable</label>
+              <input type="text" name="numero_cuenta_contable" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Valor del IVA</label>
+              <input type="number" step="0.01" name="valor_iva" id="valor_iva" class="form-control" value="0" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Valor sin IVA</label>
+              <input type="number" step="0.01" name="valor_sin_iva" id="valor_sin_iva" class="form-control" value="0" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Total del producto sin IVA</label>
+              <input type="number" step="0.01" name="total_producto_sin_iva" id="total_producto_sin_iva" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Total del IVA</label>
+              <input type="number" step="0.01" name="total_iva" id="total_iva" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Total sin IVA</label>
+              <input type="number" step="0.01" name="total_sin_iva_general" id="total_sin_iva_general" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Total general</label>
+              <input type="number" step="0.01" name="total_general" id="total_general" class="form-control" readonly>
+            </div>
+            <div class="col-12 text-end">
+              <button name="save_invoice" type="submit" class="btn btn-success">💾 Registrar Compra</button>
+            </div>
+          </form>
+        </div>
+      </main>
 
     <footer class="app-footer">
       <div class="float-end d-none d-sm-inline">Anything you want</div>
@@ -360,6 +378,9 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
     document.getElementById('valor_iva').addEventListener('input', calcularTotales);
     document.getElementById('valor_sin_iva').addEventListener('input', calcularTotales);
     calcularTotales();
+
+
+    
   </script>
 </body>
 </html>

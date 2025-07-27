@@ -233,7 +233,7 @@ if (isset($_GET['cliente_id'])) {
 
 
 
-                                    <li class="nav-item">
+                                <!--   <li class="nav-item">
                     <a href="../widgets/inventario.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>inventario</p>
@@ -246,7 +246,30 @@ if (isset($_GET['cliente_id'])) {
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Clasificación de inventario</p>
                     </a>
+                  </li>-->
+                                    <li class="nav-item">
+                    <a href="../widgets/docuemnetación.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Registro de Compras (Internas)</p>
+                    </a>
                   </li>
+
+
+
+                                              <li class="nav-item">
+                    <a href="../widgets/infro_registro_compras.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Infro Registro de Compras (Internas)</p>
+                    </a>
+                  </li>
+
+                                              <li class="nav-item">
+                    <a href="../widgets/factura_comrpas.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>IFactura de Compras (Internas)</p>
+                    </a>
+                  </li>
+
 
 
                   
@@ -439,6 +462,39 @@ $total_con_iva_ultima = $total_ultima + $iva_ultima;
   <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>" class="btn btn-outline-danger mt-3" target="_blank">
   Exportar como PDF
 </a>
+
+<!-- Reemplaza tu enlace por este botón -->
+<button
+  type="button"
+  id="btnPartidaContable"
+  class="btn btn-outline-danger mt-3"
+>
+  Generar Partida contable
+</button>
+
+<script>
+  document.getElementById('btnPartidaContable').addEventListener('click', function() {
+    const clienteId = <?= json_encode($cliente_info['id'], JSON_NUMERIC_CHECK) ?>;
+    const url = `generar_Partida_contable.php?cliente_id=${clienteId}`;
+    window.open(
+      url,
+      'PartidaContablePopup',
+      // Con estas “features” forzamos ventana flotante
+      'width=800,'  +
+      'height=600,' +
+      'top=100,'    +
+      'left=100,'   +
+      'menubar=no,' +
+      'toolbar=no,' +
+      'location=no,'+
+      'status=no,'  +
+      'scrollbars=yes,'+
+      'resizable=yes'
+    );
+  });
+</script>
+
+
 
 </main>
 
