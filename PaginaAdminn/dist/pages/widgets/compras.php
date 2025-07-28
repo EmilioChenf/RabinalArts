@@ -20,6 +20,11 @@ if (isset($_POST['guardar'])) {
 <html lang="en">
   <!--begin::Head-->
   <head>
+     <link rel="stylesheet" href="/dist/css/adminlte.min.css">
+  <!-- …otros CSS de bootstrap, plugins, etc… -->
+
+  <!-- Aquí, **TU** CSS personalizado -->
+  <link rel="stylesheet" href="../../../dist/css/custom.css"> 
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>AdminLTE 4 | Widgets - Small Box</title>
     <!--begin::Primary Meta Tags-->
@@ -96,13 +101,13 @@ if (isset($_POST['guardar'])) {
           <a href="../index.html" class="brand-link">
             <!--begin::Brand Image-->
             <img
-              src="../../../dist/assets/img/AdminLTELogo.png"
+              src="../../../dist/assets/img/rabi.png"
               alt="AdminLTE Logo"
               class="brand-image opacity-75 shadow"
             />
             <!--end::Brand Image-->
             <!--begin::Brand Text-->
-            <span class="brand-text fw-light">AdminLTE 4</span>
+            <span class="brand-text fw-light">RabinalArts</span>
             <!--end::Brand Text-->
           </a>
           <!--end::Brand Link-->
