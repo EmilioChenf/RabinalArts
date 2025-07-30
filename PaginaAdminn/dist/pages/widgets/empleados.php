@@ -292,7 +292,12 @@ $empleados = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
 
 
 
-
+<li class="nav-item">
+                    <a href="../widgets/movimientos_contables.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Movimientos contables y jornalizaciones</p>
+                    </a>
+                  </li>
 
 
 

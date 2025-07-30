@@ -275,7 +275,12 @@ if (isset($_GET['cliente_id'])) {
                     </a>
                   </li>
 
-
+<li class="nav-item">
+                    <a href="../widgets/movimientos_contables.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Movimientos contables y jornalizaciones</p>
+                    </a>
+                  </li>
 
                   
                 </ul>
@@ -293,10 +298,7 @@ if (isset($_GET['cliente_id'])) {
 
 
       
-
-
-
-      <main class="app-main p-4">
+<main class="app-main p-4">
   <div class="container">
     <h1 class="mb-4">Generar Factura</h1>
 
@@ -317,94 +319,110 @@ if (isset($_GET['cliente_id'])) {
       </div>
     </form>
 
-    <!-- Mostrar datos cliente -->
+    <!-- Mostrar datos cliente en tabla -->
     <?php if (!empty($cliente_info)): ?>
-    <div class="mb-4 border p-3 bg-light">
-      <h5>Datos del Cliente</h5>
-      <p><strong>ID:</strong> <?= $cliente_info['id'] ?></p>
-      <p><strong>Nombre:</strong> <?= htmlspecialchars($cliente_info['nombre']) ?></p>
-      <p><strong>Correo:</strong> <?= htmlspecialchars($cliente_info['correo']) ?></p>
-      <p><strong>Teléfono:</strong> <?= htmlspecialchars($cliente_info['telefono']) ?></p>
-      <p><strong>Dirección:</strong> <?= htmlspecialchars($cliente_info['direccion']) ?></p>
-    </div>
+      <div class="mb-4">
+        <h5>Datos del Cliente</h5>
+        <table class="table table-bordered bg-light">
+          <thead class="table-secondary">
+            <tr>
+              <th>Campo</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ID</td>
+              <td><?= $cliente_info['id'] ?></td>
+            </tr>
+            <tr>
+              <td>Nombre</td>
+              <td><?= htmlspecialchars($cliente_info['nombre']) ?></td>
+            </tr>
+            <tr>
+              <td>Correo</td>
+              <td><?= htmlspecialchars($cliente_info['correo']) ?></td>
+            </tr>
+            <tr>
+              <td>Teléfono</td>
+              <td><?= htmlspecialchars($cliente_info['telefono']) ?></td>
+            </tr>
+            <tr>
+              <td>Dirección</td>
+              <td><?= htmlspecialchars($cliente_info['direccion']) ?></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Botones que solo aparecen después de buscar cliente -->
+        <div class="d-flex gap-2">
+          <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>"
+             class="btn btn-outline-danger"
+             target="_blank">
+            Exportar como PDF
+          </a>
+          <button
+            type="button"
+            id="btnPartidaContable"
+            class="btn btn-outline-danger"
+          >
+            Generar Partida contable
+          </button>
+        </div>
+      </div>
     <?php endif; ?>
 
     <!-- Última factura del cliente -->
     <?php if (!empty($detalles)): ?>
-    <div class="mb-4">
-      <h5>Última Factura Registrada</h5>
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario ($)</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php
-$total_ultima = 0;
-$rows = []; // Guardamos las filas para usarlas dos veces
-while ($row = $detalles->fetch_assoc()) {
-    $rows[] = $row;
-    $total_ultima += $row['total'];
-}
-$iva_ultima = $total_ultima * 0.12;
-$total_con_iva_ultima = $total_ultima + $iva_ultima;
-?>
-
-<?php foreach ($rows as $row): ?>
-<tr>
-  <td><?= htmlspecialchars($row['nombre']) ?></td>
-  <td><?= $row['cantidad'] ?></td>
-  <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
-  <td>$<?= number_format($row['total'], 2) ?></td>
-</tr>
-<?php endforeach; ?>
-
-        </tbody>
-        <tfoot>
-  <tr>
-    <th colspan="3" class="text-end">Subtotal:</th>
-    <th>$<?= number_format($total_ultima, 2) ?></th>
-  </tr> 
-  <tr>
-    <th colspan="3" class="text-end">IVA (12%):</th>
-    <th>$<?= number_format($iva_ultima, 2) ?></th>
-  </tr>
-  <tr>
-    <th colspan="3" class="text-end">Total con IVA:</th>
-    <th>$<?= number_format($total_con_iva_ultima, 2) ?></th>
-  </tr>
-</tfoot>
-
-      </table>
-    </div>
-    <?php endif; ?>
-
-    <!-- Agregar nuevo producto
-    <form method="POST" class="row g-3 mb-4">
-      <div class="col-md-6">
-        <label for="producto_id" class="form-label">Producto</label>
-        <select name="producto_id" id="producto_id" class="form-select" required>
-          <option value="">Seleccione</option>
+      <div class="mb-4">
+        <h5>Última Factura Registrada</h5>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Precio Unitario ($)</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
           <?php
-            $productos = mysqli_query($conn, "SELECT id, nombre FROM productos");
-            while ($row = mysqli_fetch_assoc($productos)) {
-              echo "<option value='{$row['id']}'>{$row['nombre']}</option>";
-            }
+          $total_ultima = 0;
+          $rows = [];
+          while ($row = $detalles->fetch_assoc()) {
+              $rows[] = $row;
+              $total_ultima += $row['total'];
+          }
+          $iva_ultima = $total_ultima * 0.12;
+          $total_con_iva_ultima = $total_ultima + $iva_ultima;
           ?>
-        </select>
+
+          <?php foreach ($rows as $row): ?>
+          <tr>
+            <td><?= htmlspecialchars($row['nombre']) ?></td>
+            <td><?= $row['cantidad'] ?></td>
+            <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
+            <td>$<?= number_format($row['total'], 2) ?></td>
+          </tr>
+          <?php endforeach; ?>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3" class="text-end">Subtotal:</th>
+              <th>$<?= number_format($total_ultima, 2) ?></th>
+            </tr>
+            <tr>
+              <th colspan="3" class="text-end">IVA (12%):</th>
+              <th>$<?= number_format($iva_ultima, 2) ?></th>
+            </tr>
+            <tr>
+              <th colspan="3" class="text-end">Total con IVA:</th>
+              <th>$<?= number_format($total_con_iva_ultima, 2) ?></th>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-      <div class="col-md-3">
-        <label for="cantidad" class="form-label">Cantidad</label>
-        <input type="number" name="cantidad" id="cantidad" class="form-control" min="1" required>
-      </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" name="agregar" class="btn btn-primary w-100">Agregar</button>
-      </div>
-    </form> -->
+    <?php endif; ?>
 
     <!-- Detalle de factura actual -->
     <?php if (!empty($_SESSION['factura_detalle'])): ?>
@@ -419,43 +437,39 @@ $total_con_iva_ultima = $total_ultima + $iva_ultima;
           </tr>
         </thead>
         <tbody>
-  <?php 
-    $total = 0;
-    foreach ($_SESSION['factura_detalle'] as $item): 
-      $total += $item['subtotal'];
-  ?>
-    <tr>
-      <td><?= htmlspecialchars($item['nombre']) ?></td>
-      <td><?= $item['cantidad'] ?></td>
-      <td>Q<?= number_format($item['precio'], 2) ?></td>
-      <td>Q<?= number_format($item['subtotal'], 2) ?></td>
-    </tr>
-  <?php endforeach; 
+        <?php 
+          $total = 0;
+          foreach ($_SESSION['factura_detalle'] as $item): 
+            $total += $item['subtotal'];
+        ?>
+          <tr>
+            <td><?= htmlspecialchars($item['nombre']) ?></td>
+            <td><?= $item['cantidad'] ?></td>
+            <td>Q<?= number_format($item['precio'], 2) ?></td>
+            <td>Q<?= number_format($item['subtotal'], 2) ?></td>
+          </tr>
+        <?php endforeach; ?>
 
-    // Calcular IVA y total con IVA aquí
-    $iva = $total * 0.12;
-    $total_final = $total + $iva;
-  ?>
-</tbody>
-
-<tfoot>
-  <tr>
-    <th colspan="3" class="text-end">Subtotal:</th>
-    <th>Q<?= number_format($total, 2) ?></th>
-  </tr>
-  <tr>
-    <th colspan="3" class="text-end">IVA (12%):</th>
-    <th>Q<?= number_format($iva, 2) ?></th>
-  </tr>
-  <tr>
-    <th colspan="3" class="text-end">Total con IVA:</th>
-    <th>Q<?= number_format($total_final, 2) ?></th>
-  </tr>
-</tfoot>
-
-        
+        <?php
+          $iva = $total * 0.12;
+          $total_final = $total + $iva;
+        ?>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" class="text-end">Subtotal:</th>
+            <th>Q<?= number_format($total, 2) ?></th>
+          </tr>
+          <tr>
+            <th colspan="3" class="text-end">IVA (12%):</th>
+            <th>Q<?= number_format($iva, 2) ?></th>
+          </tr>
+          <tr>
+            <th colspan="3" class="text-end">Total con IVA:</th>
+            <th>Q<?= number_format($total_final, 2) ?></th>
+          </tr>
+        </tfoot>
       </table>
-      
 
       <form method="POST" action="guardar_factura.php">
         <div class="text-end">
@@ -464,45 +478,33 @@ $total_con_iva_ultima = $total_ultima + $iva_ultima;
       </form>
     <?php endif; ?>
   </div>
-  <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>" class="btn btn-outline-danger mt-3" target="_blank">
-  Exportar como PDF
-</a>
 
-<!-- Reemplaza tu enlace por este botón -->
-<button
-  type="button"
-  id="btnPartidaContable"
-  class="btn btn-outline-danger mt-3"
->
-  Generar Partida contable
-</button>
-
-<script>
-  document.getElementById('btnPartidaContable').addEventListener('click', function() {
-    const clienteId = <?= json_encode($cliente_info['id'], JSON_NUMERIC_CHECK) ?>;
-    const url = `generar_Partida_contable.php?cliente_id=${clienteId}`;
-    window.open(
-      url,
-      'PartidaContablePopup',
-      // Con estas “features” forzamos ventana flotante
-      'width=800,'  +
-      'height=600,' +
-      'top=100,'    +
-      'left=100,'   +
-      'menubar=no,' +
-      'toolbar=no,' +
-      'location=no,'+
-      'status=no,'  +
-      'scrollbars=yes,'+
-      'resizable=yes'
-    );
-  });
-</script>
-
-
-
+  <script>
+    document.getElementById('btnPartidaContable')?.addEventListener('click', function() {
+      const clienteId = <?= json_encode($cliente_info['id'] ?? '', JSON_NUMERIC_CHECK) ?>;
+      if (!clienteId) return;
+      const url = `generar_Partida_contable.php?cliente_id=${clienteId}`;
+      window.open(
+        url,
+        'PartidaContablePopup',
+        'width=800,'  +
+        'height=600,' +
+        'top=100,'    +
+        'left=100,'   +
+        'menubar=no,' +
+        'toolbar=no,' +
+        'location=no,'+
+        'status=no,'  +
+        'scrollbars=yes,'+
+        'resizable=yes'
+      );
+    });
+  </script>
 </main>
 
+
+
+     
     
     <!--end::App Main-->
       <!--begin::Footer-->

@@ -33,7 +33,7 @@ $det = mysqli_query($conn,
 $sections = ['ACTIVO'=>[], 'PASIVO'=>[], 'PATRIMONIO NETO'=>[]];
 while($r = mysqli_fetch_assoc($det)) {
   $sec = strtoupper($r['clasificacion']);
-  if (strpos($sec,'PASIVO')!==false) $g='PASIVO';
+  if (strpos($sec,'PASIVO')!==false) $g='PASIVO'; 
   elseif (strpos($sec,'PATRIMONIO')!==false) $g='PATRIMONIO NETO';
   else $g='ACTIVO';
   $sections[$g][] = $r;

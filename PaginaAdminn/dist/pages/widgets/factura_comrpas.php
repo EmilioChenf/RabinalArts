@@ -247,6 +247,14 @@ if (isset($_GET['compra_id'])) {
                   </li>
 
 
+                  <li class="nav-item">
+                    <a href="../widgets/movimientos_contables.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Movimientos contables y jornalizaciones</p>
+                    </a>
+                  </li>
+
+
                   
                 </ul>
               </li>
@@ -263,95 +271,135 @@ if (isset($_GET['compra_id'])) {
 
 
       
+<main class="app-main p-4">
+  <div class="container">
+    <h1 class="mb-4">Generar Factura de Compra Interna</h1>
 
+    <!-- Encabezado de empresa -->
+    <div class="mb-3">
+      <h4 class="fw-bold">RABINALARTS</h4>
+      <p>
+        <strong>Fecha:</strong> <?= date("Y-m-d") ?>
+        | <strong>Folio:</strong>
+        <?= isset($compra_info['id'])
+            ? str_pad($compra_info['id'], 5, "0", STR_PAD_LEFT)
+            : '----' ?>
+      </p>
+    </div>
 
+    <!-- Form para buscar una compra interna -->
+    <form method="GET" class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label for="compra_id" class="form-label">ID Compra Interna</label>
+        <input
+          type="number"
+          name="compra_id"
+          id="compra_id"
+          class="form-control"
+          required
+        />
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-dark">Buscar Compra</button>
+      </div>
+    </form>
 
-       <main class="app-main p-4">
-        <div class="container">
-          <h1 class="mb-4">Generar Factura de Compra Interna</h1>
+    <?php if (!empty($compra_info)): ?>
+      <!-- Detalles de la compra interna en tabla -->
+      <div class="mb-4">
+        <h5>Detalles de la Compra</h5>
+        <table class="table table-bordered bg-light">
+          <thead class="table-secondary">
+            <tr>
+              <th>Campo</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ID</td>
+              <td><?= $compra_info['id'] ?></td>
+            </tr>
+            <tr>
+              <td>Forma de Pago</td>
+              <td><?= htmlspecialchars($compra_info['forma_pago']) ?></td>
+            </tr>
+            <tr>
+              <td>Período</td>
+              <td><?= htmlspecialchars($compra_info['periodo_pago']) ?></td>
+            </tr>
+            <tr>
+              <td>Producto</td>
+              <td><?= htmlspecialchars($compra_info['nombre_producto']) ?></td>
+            </tr>
+            <tr>
+              <td>Cuenta Contable</td>
+              <td><?= htmlspecialchars($compra_info['numero_cuenta_contable']) ?></td>
+            </tr>
+            <tr>
+              <td>Valor IVA</td>
+              <td>Q<?= number_format($compra_info['valor_iva'], 2) ?></td>
+            </tr>
+            <tr>
+              <td>Valor sin IVA</td>
+              <td>Q<?= number_format($compra_info['valor_sin_iva'], 2) ?></td>
+            </tr>
+            <tr>
+              <td>Total sin IVA</td>
+              <td>Q<?= number_format($compra_info['total_producto_sin_iva'], 2) ?></td>
+            </tr>
+            <tr>
+              <td>Total IVA</td>
+              <td>Q<?= number_format($compra_info['total_iva'], 2) ?></td>
+            </tr>
+            <tr>
+              <td>Total General</td>
+              <td>Q<?= number_format($compra_info['total_general'], 2) ?></td>
+            </tr>
+            <tr>
+              <td>Fecha de Registro</td>
+              <td><?= $compra_info['fecha_registro'] ?></td>
+            </tr>
+          </tbody>
+        </table>
 
-          <!-- Encabezado de empresa -->
-          <div class="mb-3">
-            <h4 class="fw-bold">RABINALARTS</h4>
-            <p>
-              <strong>Fecha:</strong> <?= date("Y-m-d") ?>
-              | <strong>Folio:</strong>
-              <?= isset($compra_info['id'])
-                  ? str_pad($compra_info['id'], 5, "0", STR_PAD_LEFT)
-                  : '----' ?>
-            </p>
-          </div>
+        <!-- Botones de acción -->
+        <div class="d-flex gap-2">
+          <a
+            href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
+            target="_blank"
+            class="btn btn-outline-danger"
+          >
+            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+          </a>
 
-          <!-- Form para buscar una compra interna -->
-          <form method="GET" class="row g-3 mb-4">
-            <div class="col-md-3">
-              <label for="compra_id" class="form-label">ID Compra Interna</label>
-              <input
-                type="number"
-                name="compra_id"
-                id="compra_id"
-                class="form-control"
-                required
-              />
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-              <button type="submit" class="btn btn-dark">Buscar Compra</button>
-            </div>
-          </form>
-
-          <?php if (!empty($compra_info)): ?>
-            <!-- Detalles de la compra interna -->
-            <div class="mb-4 border p-3 bg-light">
-              <h5>Detalles de la Compra</h5>
-              <p><strong>ID:</strong> <?= $compra_info['id'] ?></p>
-              <p><strong>Forma de Pago:</strong> <?= htmlspecialchars($compra_info['forma_pago']) ?></p>
-              <p><strong>Período:</strong> <?= htmlspecialchars($compra_info['periodo_pago']) ?></p>
-              <p><strong>Producto:</strong> <?= htmlspecialchars($compra_info['nombre_producto']) ?></p>
-              <p><strong>Cuenta Contable:</strong> <?= htmlspecialchars($compra_info['numero_cuenta_contable']) ?></p>
-              <p><strong>Valor IVA:</strong> Q<?= number_format($compra_info['valor_iva'], 2) ?></p>
-              <p><strong>Valor sin IVA:</strong> Q<?= number_format($compra_info['valor_sin_iva'], 2) ?></p>
-              <p><strong>Total sin IVA:</strong> Q<?= number_format($compra_info['total_producto_sin_iva'], 2) ?></p>
-              <p><strong>Total IVA:</strong> Q<?= number_format($compra_info['total_iva'], 2) ?></p>
-              <p><strong>Total General:</strong> Q<?= number_format($compra_info['total_general'], 2) ?></p>
-              <p><strong>Fecha de Registro:</strong> <?= $compra_info['fecha_registro'] ?></p>
-            </div>
-
-            <!-- Botones de acción -->
-            <div class="d-flex gap-2">
-              <a
-                href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
-                target="_blank"
-                class="btn btn-outline-danger"
-              >
-                <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-              </a>
-
-              <button
-                type="button"
-                id="btnPartidaContable"
-                class="btn btn-outline-danger"
-              >
-                <i class="bi bi-journal-text"></i> Generar Partida Contable
-              </button>
-            </div>
-
-            <script>
-              document
-                .getElementById('btnPartidaContable')
-                .addEventListener('click', function() {
-                  const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
-                  window.open(
-                    'generar_Partida_contable_compras.php?compra_id=' + id,
-                    'PartidaContablePopup',
-                    'width=800,height=600,top=100,left=100,' +
-                    'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
-                  );
-                });
-            </script>
-          <?php endif; ?>
+          <button
+            type="button"
+            id="btnPartidaContable"
+            class="btn btn-outline-danger"
+          >
+            <i class="bi bi-journal-text"></i> Generar Partida Contable
+          </button>
         </div>
-      </main>
-    
+      </div>
+
+      <script>
+        document
+          .getElementById('btnPartidaContable')
+          .addEventListener('click', function() {
+            const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
+            window.open(
+              'generar_Partida_contable_compras.php?compra_id=' + id,
+              'PartidaContablePopup',
+              'width=800,height=600,top=100,left=100,' +
+              'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
+            );
+          });
+      </script>
+    <?php endif; ?>
+  </div>
+</main>
+
     <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">

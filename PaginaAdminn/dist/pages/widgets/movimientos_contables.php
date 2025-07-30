@@ -1,4 +1,43 @@
-<?php include 'conexion.php'; ?>
+<?php
+// venta_factura.php
+session_start();
+include 'conexion.php';
+// 1) Parámetros de filtro
+$from = $_GET['from'] ?? date('Y-m-01');
+$to   = $_GET['to']   ?? date('Y-m-d');
+
+// Escapamos para seguridad
+$from_sql = $conn->real_escape_string($from);
+$to_sql   = $conn->real_escape_string($to);
+
+// 2) Partidas de Compras
+$sql_comp = "
+  SELECT id, descripcion, created_at AS fecha
+  FROM partidas_contables_compras
+  WHERE DATE(created_at) BETWEEN '$from_sql' AND '$to_sql'
+  ORDER BY created_at DESC
+";
+$res_comp = $conn->query($sql_comp);
+if (! $res_comp) {
+    die("Error en consulta de partidas de compras: " . $conn->error);
+}
+
+// 3) Partidas de Ventas
+$sql_vent = "
+  SELECT id, cliente_id, descripcion, fecha
+  FROM partidas_contables_ventas
+  WHERE DATE(fecha) BETWEEN '$from_sql' AND '$to_sql'
+  ORDER BY fecha DESC
+";
+$res_vent = $conn->query($sql_vent);
+if (! $res_vent) {
+    die("Error en consulta de partidas de ventas: " . $conn->error);
+}
+?>
+
+
+
+
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -158,15 +197,12 @@
                     </a>
                   </li>
 
-
                   <li class="nav-item">
                     <a href="../widgets/clientes_info.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Info Clientes</p>
                     </a>
                   </li>
-
-
 
                   <li class="nav-item">
                     <a href="../widgets/planilla.php" class="nav-link active">
@@ -177,7 +213,7 @@
 
 
 
-                  <li class="nav-item">
+  <li class="nav-item">
                     <a href="../widgets/empleados.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Gestion de empleados</p>
@@ -191,6 +227,9 @@
                       <p>Gestion de cuentas</p>
                     </a>
                   </li>
+                  
+
+
 
                                 <!--   <li class="nav-item">
                     <a href="../widgets/inventario.php" class="nav-link active">
@@ -229,12 +268,16 @@
                     </a>
                   </li>
 
-<li class="nav-item">
+                    <li class="nav-item">
                     <a href="../widgets/movimientos_contables.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Movimientos contables y jornalizaciones</p>
                     </a>
                   </li>
+
+
+
+
 
                   
                 </ul>
@@ -250,202 +293,91 @@
       <!--end::Sidebar-->
       <!--begin::App Main-->
 
+  <main class="app-main p-4">
+    <div class="container">
+      <h1 class="mb-4">Gestión de Movimientos Contables</h1>
 
-      
-
-      <main class="app-main">
-    <div class="app-content-header p-4">
-      <div class="container-fluid">
-        <h3 class="mb-0">Sistema Contable</h3>
-      </div>
-    </div>
-
-    <div class="app-content p-4">
-      <div class="container-fluid">
-
-        <!-- Resumen por Categoría -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Resumen de ingresos por categoría</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Categoría</th><th>Total ingresos ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $resumen = mysqli_query($conn, "SELECT categoria, SUM(precio * stock) AS total FROM productos GROUP BY categoria");
-                  while($fila = mysqli_fetch_assoc($resumen)) {
-                    echo "<tr><td>{$fila['categoria']}</td><td>$ " . number_format($fila['total'], 2) . "</td></tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
+      <!-- Filtro de fechas -->
+      <form method="GET" class="row g-3 align-items-end mb-5">
+        <div class="col-md-3">
+          <label for="from" class="form-label">Desde</label>
+          <input type="date" id="from" name="from" class="form-control" value="<?= htmlspecialchars($from) ?>">
         </div>
-
-          <!-- Ganancias por Producto -->
-    <div class="card mb-4">
-        <div class="card-header">Ganancias por producto (ventas)</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead><tr><th>Producto</th><th>Unidades Vendidas</th><th>Precio Unitario</th><th>Ganancia ($)</th></tr></thead>
-                <tbody>
-                <?php
-                $res = mysqli_query($conn, "SELECT p.nombre, SUM(d.cantidad) AS cantidad_vendida, d.precio_unitario, SUM(d.total) AS total_ganancia FROM detalle_venta d JOIN productos p ON d.producto_id = p.id GROUP BY d.producto_id");
-                while($row = mysqli_fetch_assoc($res)) {
-                    echo "<tr><td>{$row['nombre']}</td><td>{$row['cantidad_vendida']}</td><td>$ ".number_format($row['precio_unitario'], 2)."</td><td>$ ".number_format($row['total_ganancia'], 2)."</td></tr>";
-                }
-                ?>
-                </tbody>
-            </table>
+        <div class="col-md-3">
+          <label for="to" class="form-label">Hasta</label>
+          <input type="date" id="to" name="to" class="form-control" value="<?= htmlspecialchars($to) ?>">
         </div>
-    </div>
-
-
- <!-- Ganancias del mes actual -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Ganancias del mes actual</strong></div>
-    <div class="card-body">
-        <?php
-        $mesActual = date('Y-m'); // Formato YYYY-MM
-        $query = "SELECT SUM(precio * stock) AS ganancias_mes 
-                  FROM productos 
-                  WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $mesActual);
-        $stmt->execute();
-        $resultado = $stmt->get_result();
-        $gananciasMes = $resultado->fetch_assoc();
-        $ganancia = $gananciasMes['ganancias_mes'] ?? 0;
-        ?>
-        <h4 class="text-success">Q <?= number_format($ganancia, 2) ?></h4>
-    </div>
-</div>
-
-<!-- Reporte filtrable por calendario -->
-<div class="card mb-4">
-    <div class="card-header"><strong>Reporte de ingresos por fecha</strong></div>
-    <div class="card-body">
-        <form method="GET" class="mb-3">
-            <label for="fecha">Selecciona una fecha:</label>
-            <input type="date" name="fecha" id="fecha" class="form-control" value="<?php echo isset($_GET['fecha']) ? $_GET['fecha'] : ''; ?>" required>
-            <button type="submit" class="btn btn-primary mt-2">Ver reporte</button>
-        </form>
-
-        <?php
-        if (isset($_GET['fecha'])) {
-            $fechaSeleccionada = $_GET['fecha'];
-            $dia = $fechaSeleccionada;
-            $mes = date('Y-m', strtotime($fechaSeleccionada));
-            $anio = date('Y', strtotime($fechaSeleccionada));
-
-            // Reporte diario
-            $diario = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE(fecha_creacion) = '$dia'"));
-
-            // Reporte mensual
-            $mensual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE DATE_FORMAT(fecha_creacion, '%Y-%m') = '$mes'"));
-
-            // Reporte anual
-            $anual = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos WHERE YEAR(fecha_creacion) = '$anio'"));
-
-            echo "<h5>Resultados para: " . date('d-m-Y', strtotime($fechaSeleccionada)) . "</h5>";
-
-            echo "<table class='table table-bordered'>
-                <thead><tr><th>Periodo</th><th>Total Ingresos ($)</th></tr></thead>
-                <tbody>
-                    <tr><td>Dia seleccionado ($dia)</td><td>$ " . number_format($diario['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Mes actual ($mes)</td><td>$ " . number_format($mensual['total'] ?? 0, 2) . "</td></tr>
-                    <tr><td>Año actual ($anio)</td><td>$ " . number_format($anual['total'] ?? 0, 2) . "</td></tr>
-                </tbody>
-            </table>";
-        }
-        ?>
-    </div>
-</div>
-
-
-        <!-- Detalle por producto (nuevo) -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Detalle por producto</strong></div>
-          <div class="card-body">
-            <table class="table table-bordered">
-              <thead>
-                <tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Total ($)</th></tr>
-              </thead>
-              <tbody>
-                <?php
-                  $detalle = mysqli_query($conn, "SELECT nombre, categoria, precio, stock FROM productos");
-                  while($fila = mysqli_fetch_assoc($detalle)) {
-                    $total = $fila['precio'] * $fila['stock'];
-                    echo "<tr>
-                      <td>{$fila['nombre']}</td>
-                      <td>{$fila['categoria']}</td>
-                      <td>$ " . number_format($fila['precio'], 2) . "</td>
-                      <td>{$fila['stock']}</td>
-                      <td>$ " . number_format($total, 2) . "</td>
-                    </tr>";
-                  }
-                ?>
-              </tbody>
-            </table>
-          </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-funnel-fill"></i> Filtrar
+          </button>
         </div>
+      </form>
 
-        <!-- Balance General -->
-        <div class="card mb-4">
-          <div class="card-header"><strong>Balance general</strong></div>
-          <div class="card-body">
-            <ul>
-              <li><strong>Activos:</strong> Inventario disponible = 
-                <?php
-                  $activos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(precio * stock) AS total FROM productos"));
-                  echo "$ " . number_format($activos['total'], 2);
-                ?>
-              </li>
-              <li><strong>Pasivos:</strong> (simulados) = $ 5,000.00</li>
-              <li><strong>Capital:</strong> 
-                <?php
-                  $capital = $activos['total'] - 5000;
-                  echo "$ " . number_format($capital, 2);
-                ?>
-              </li>
-            </ul>
-          </div>
-        </div>
+      <!-- Partidas de Compras -->
+      <section class="mb-5">
+        <h3>Partidas Contables (Compras)</h3>
+        <table class="table table-striped table-bordered">
+          <thead class="table-dark">
+            <tr><th>ID</th><th>Fecha</th><th>Descripción</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            <?php if ($res_comp->num_rows === 0): ?>
+              <tr><td colspan="4" class="text-center">No hay partidas de compras en este rango.</td></tr>
+            <?php else: ?>
+              <?php while ($r = $res_comp->fetch_assoc()): ?>
+                <tr>
+                  <td><?= $r['id'] ?></td>
+                  <td><?= date('Y-m-d', strtotime($r['fecha'])) ?></td>
+                  <td><?= htmlspecialchars($r['descripcion']) ?></td>
+                  <td>
+                    <a href="exportar_compra_interna_pdf.php?partida_id=<?= $r['id'] ?>&compra_id=<?= $r['id'] ?>"
+                       class="btn btn-sm btn-outline-danger" target="_blank">
+                      <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </a>
+                  </td>
+                </tr>
+              <?php endwhile; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </section>
 
-<!-- Exportar PDF por fecha -->
-<div class="card mb-4">
-  <div class="card-header"><strong>Exportar Reporte Contable (PDF)</strong></div>
-  <div class="card-body">
-    <form action="exportar_pdf.php" method="get" class="row g-3">
-      <div class="col-md-4">
-        <label for="fecha" class="form-label">Selecciona una fecha</label>
-        <input type="date" name="fecha" id="fecha" class="form-control">
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <button type="submit" class="btn btn-danger">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-        </button>
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <a href="exportar_pdf.php" target="_blank" class="btn btn-secondary">
-          <i class="bi bi-file-earmark-pdf"></i> Exportar TODO (sin filtrar)
-        </a>
-      </div>
-    </form>
-  </div>
-</div>
-
-
-
-      </div>
+      <!-- Partidas de Ventas -->
+      <section>
+        <h3>Partidas Contables (Ventas)</h3>
+        <table class="table table-striped table-bordered">
+          <thead class="table-dark">
+            <tr><th>ID</th><th>Fecha</th><th>Descripción</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            <?php if ($res_vent->num_rows === 0): ?>
+              <tr><td colspan="4" class="text-center">No hay partidas de ventas en este rango.</td></tr>
+            <?php else: ?>
+              <?php while ($r = $res_vent->fetch_assoc()): ?>
+                <tr>
+                  <td><?= $r['id'] ?></td>
+                  <td><?= date('Y-m-d', strtotime($r['fecha'])) ?></td>
+                  <td><?= htmlspecialchars($r['descripcion']) ?></td>
+                  <td>
+                    <a href="exportar_partida_pdf.php?partida_id=<?= $r['id'] ?>&cliente_id=<?= $r['cliente_id'] ?>"
+                       class="btn btn-sm btn-outline-danger" target="_blank">
+                      <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </a>
+                  </td>
+                </tr>
+              <?php endwhile; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </section>
     </div>
   </main>
 
 
-  
-<!-- AQUI PARA ABAJO ES LO DE ABAJO ES LO DE ABAJO VALDA LA REDUNDANCIA   -->
-      <!--end::App Main-->
+     
+    
+    <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">
         <!--begin::To the end-->
