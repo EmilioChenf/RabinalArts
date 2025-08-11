@@ -2,6 +2,7 @@
 // venta_factura.php
 session_start();
 include 'conexion.php';
+
 // 1) Parámetros de filtro
 $from = $_GET['from'] ?? date('Y-m-01');
 $to   = $_GET['to']   ?? date('Y-m-d');
@@ -18,8 +19,8 @@ $sql_comp = "
   ORDER BY created_at DESC
 ";
 $res_comp = $conn->query($sql_comp);
-if (! $res_comp) {
-    die("Error en consulta de partidas de compras: " . $conn->error);
+if (!$res_comp) {
+  die('Error en consulta de partidas de compras: ' . $conn->error);
 }
 
 // 3) Partidas de Ventas
@@ -30,8 +31,20 @@ $sql_vent = "
   ORDER BY fecha DESC
 ";
 $res_vent = $conn->query($sql_vent);
-if (! $res_vent) {
-    die("Error en consulta de partidas de ventas: " . $conn->error);
+if (!$res_vent) {
+  die('Error en consulta de partidas de ventas: ' . $conn->error);
+}
+
+// 4) Partidas de Planilla  ⬅️ NUEVO
+$sql_plan = "
+  SELECT id, planilla_id, descripcion, created_at AS fecha
+  FROM partidas_contables_planilla
+  WHERE DATE(created_at) BETWEEN '$from_sql' AND '$to_sql'
+  ORDER BY created_at DESC
+";
+$res_plan = $conn->query($sql_plan);
+if (!$res_plan) {
+  die('Error en consulta de partidas de planilla: ' . $conn->error);
 }
 ?>
 
@@ -275,6 +288,30 @@ if (! $res_vent) {
                     </a>
                   </li>
 
+                
+                 <li class="nav-item">
+                    <a href="../widgets/factura_planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Factura Planillas</p>
+                    </a>
+                  </li>
+                  
+
+      <li class="nav-item">
+                    <a href="../widgets/librodiarip.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Diario</p>
+                    </a>
+                  </li>
+
+
+
+                   <li class="nav-item">
+                    <a href="../widgets/libro_mayor.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Mayor</p>
+                    </a>
+                  </li>
 
 
 
@@ -292,13 +329,26 @@ if (! $res_vent) {
       </aside>
       <!--end::Sidebar-->
       <!--begin::App Main-->
+<main class="app-main p-4">
+  <div class="container">
 
-  <main class="app-main p-4">
-    <div class="container">
-      <h1 class="mb-4">Gestión de Movimientos Contables</h1>
+      <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
 
+    <h1 class="mb-4">Gestión de Movimientos Contables</h1>
+
+    <!-- Botón para mostrar/ocultar el listado de partidas -->
+    <button id="showPartidasBtn" class="btn btn-primary mb-4">
+      Mostrar partidas
+    </button>
+
+    <div id="partidasSection" style="display:none;">
       <!-- Filtro de fechas -->
-      <form method="GET" class="row g-3 align-items-end mb-5">
+      <form method="GET" class="row g-3 align-items-end mb-4">
         <div class="col-md-3">
           <label for="from" class="form-label">Desde</label>
           <input type="date" id="from" name="from" class="form-control" value="<?= htmlspecialchars($from) ?>">
@@ -308,71 +358,85 @@ if (! $res_vent) {
           <input type="date" id="to" name="to" class="form-control" value="<?= htmlspecialchars($to) ?>">
         </div>
         <div class="col-md-2">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-funnel-fill"></i> Filtrar
-          </button>
+          <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
         </div>
       </form>
 
-      <!-- Partidas de Compras -->
-      <section class="mb-5">
-        <h3>Partidas Contables (Compras)</h3>
-        <table class="table table-striped table-bordered">
-          <thead class="table-dark">
-            <tr><th>ID</th><th>Fecha</th><th>Descripción</th><th>Acciones</th></tr>
-          </thead>
-          <tbody>
-            <?php if ($res_comp->num_rows === 0): ?>
-              <tr><td colspan="4" class="text-center">No hay partidas de compras en este rango.</td></tr>
-            <?php else: ?>
-              <?php while ($r = $res_comp->fetch_assoc()): ?>
-                <tr>
-                  <td><?= $r['id'] ?></td>
-                  <td><?= date('Y-m-d', strtotime($r['fecha'])) ?></td>
-                  <td><?= htmlspecialchars($r['descripcion']) ?></td>
-                  <td>
-                    <a href="exportar_compra_interna_pdf.php?partida_id=<?= $r['id'] ?>&compra_id=<?= $r['id'] ?>"
-                       class="btn btn-sm btn-outline-danger" target="_blank">
-                      <i class="bi bi-file-earmark-pdf"></i> PDF
-                    </a>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </section>
+      <?php
+        // Recolectar todas las partidas en un solo array
+        $partidas = [];
 
-      <!-- Partidas de Ventas -->
-      <section>
-        <h3>Partidas Contables (Ventas)</h3>
-        <table class="table table-striped table-bordered">
-          <thead class="table-dark">
-            <tr><th>ID</th><th>Fecha</th><th>Descripción</th><th>Acciones</th></tr>
-          </thead>
-          <tbody>
-            <?php if ($res_vent->num_rows === 0): ?>
-              <tr><td colspan="4" class="text-center">No hay partidas de ventas en este rango.</td></tr>
-            <?php else: ?>
-              <?php while ($r = $res_vent->fetch_assoc()): ?>
-                <tr>
-                  <td><?= $r['id'] ?></td>
-                  <td><?= date('Y-m-d', strtotime($r['fecha'])) ?></td>
-                  <td><?= htmlspecialchars($r['descripcion']) ?></td>
-                  <td>
-                    <a href="exportar_partida_pdf.php?partida_id=<?= $r['id'] ?>&cliente_id=<?= $r['cliente_id'] ?>"
-                       class="btn btn-sm btn-outline-danger" target="_blank">
-                      <i class="bi bi-file-earmark-pdf"></i> PDF
-                    </a>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </section>
+        // Compras
+        while ($r = $res_comp->fetch_assoc()) {
+          $partidas[] = [
+            'fecha' => $r['fecha'],
+            'url'   => "exportar_compra_interna_pdf.php?partida_id={$r['id']}&compra_id={$r['id']}"
+          ];
+        }
+
+        // Ventas
+        while ($r = $res_vent->fetch_assoc()) {
+          $partidas[] = [
+            'fecha' => $r['fecha'],
+            'url'   => "exportar_partida_pdf.php?partida_id={$r['id']}&cliente_id={$r['cliente_id']}"
+          ];
+        }
+
+        // Planilla  ⬅️ NUEVO
+        while ($r = $res_plan->fetch_assoc()) {
+          $partidas[] = [
+            'fecha' => $r['fecha'],
+            'url'   => "exportar_partida_planilla_pdf.php?partida_id={$r['id']}&planilla_id={$r['planilla_id']}"
+          ];
+        }
+
+        // Ordenar por fecha descendente
+        usort($partidas, function($a, $b) {
+          return strtotime($b['fecha']) <=> strtotime($a['fecha']);
+        });
+      ?>
+
+      <!-- Tabla unificada de partidas -->
+      <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+          <tr>
+            <th>Fecha</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (empty($partidas)): ?>
+            <tr>
+              <td colspan="2" class="text-center">No hay partidas en este rango de fechas.</td>
+            </tr>
+          <?php else: ?>
+            <?php foreach ($partidas as $p): ?>
+              <tr>
+                <td><?= date('Y-m-d', strtotime($p['fecha'])) ?></td>
+                <td>
+                  <a href="<?= $p['url'] ?>" class="btn btn-sm btn-outline-danger" target="_blank">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                  </a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+      </table>
     </div>
-  </main>
+  </div>
+</main>
+
+<script>
+  // Mostrar / ocultar la sección de partidas
+  document.getElementById('showPartidasBtn').addEventListener('click', function () {
+    const sec = document.getElementById('partidasSection');
+    const show = sec.style.display === 'none';
+    sec.style.display = show ? 'block' : 'none';
+    this.textContent = show ? 'Ocultar partidas' : 'Mostrar partidas';
+  });
+</script>
+
 
 
      

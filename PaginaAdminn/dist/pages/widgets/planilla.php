@@ -246,6 +246,34 @@ include 'conexion.php';
                     </a>
                   </li>
 
+
+                 <li class="nav-item">
+                    <a href="../widgets/factura_planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Factura Planillas</p>
+                    </a>
+                  </li>
+                  
+
+      <li class="nav-item">
+                    <a href="../widgets/librodiarip.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Diario</p>
+                    </a>
+                  </li>
+
+
+
+                   <li class="nav-item">
+                    <a href="../widgets/libro_mayor.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Mayor</p>
+                    </a>
+                  </li>
+
+
+
+
                 </ul>
               </li>
 
@@ -260,8 +288,18 @@ include 'conexion.php';
       <!--end::Sidebar-->
       <!--begin::App Main-->
 
-      <main class="app-main py-4">
+<main class="app-main py-4">
   <div class="container">
+
+
+
+      <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
+
     <h3 class="mb-4">Generar Planilla</h3>
 
 <!-- Formulario -->
@@ -396,7 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <table class="table table-bordered">
       <thead class="thead-light">
         <tr>
-          <th>#</th>
+          <th>ID</th>
           <th>Empleado</th>
           <th>Puesto</th>
           <th>Fecha</th>
@@ -404,30 +442,28 @@ document.addEventListener("DOMContentLoaded", () => {
           <th>Acciones</th>
         </tr>
       </thead>
-      <tbody>
-      <?php
-        $query = "SELECT id, nombre, puesto, fecha_registro, liquido_recibir 
-                  FROM planilla 
-                  ORDER BY fecha_registro DESC";
-        $res = mysqli_query($conn, $query);
-        $i = 1;
-        while($row = mysqli_fetch_assoc($res)):
-      ?>
-        <tr>
-          <td><?= $i++ ?></td>
-          <td><?= htmlspecialchars($row['nombre']) ?></td>
-          <td><?= htmlspecialchars($row['puesto']) ?></td>
-          <td><?= htmlspecialchars($row['fecha_registro']) ?></td>
-          <td>Q <?= number_format($row['liquido_recibir'],2) ?></td>
-          <td>
-            <a href="ver_planilla.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-info">Ver</a>
-            <a href="exportar_planilla_pdf.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-sm btn-danger">
-              PDF
-            </a>
-          </td>
-        </tr>
-      <?php endwhile; ?>
-      </tbody>
+<tbody>
+<?php
+  $query = "SELECT id, nombre, puesto, fecha_registro, liquido_recibir 
+            FROM planilla 
+            ORDER BY fecha_registro DESC";
+  $res = mysqli_query($conn, $query);
+  while($row = mysqli_fetch_assoc($res)):
+?>
+  <tr>
+    <td><?= (int)$row['id'] ?></td>
+    <td><?= htmlspecialchars($row['nombre']) ?></td>
+    <td><?= htmlspecialchars($row['puesto']) ?></td>
+    <td><?= htmlspecialchars($row['fecha_registro']) ?></td>
+    <td>Q <?= number_format($row['liquido_recibir'],2) ?></td>
+    <td>
+      <a href="ver_planilla.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-info">Ver</a>
+      <a href="exportar_planilla_pdf.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-sm btn-danger">PDF</a>
+    </td>
+  </tr>
+<?php endwhile; ?>
+</tbody>
+
     </table>
 
           <!-- ******************************* -->

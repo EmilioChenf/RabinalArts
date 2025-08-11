@@ -1,48 +1,49 @@
 <?php
-// compras.php
+// compras.php (o el archivo donde tienes el form)
 include 'conexion.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // insertamos todas las compras del JSON
-    if (!empty($_POST['compras_data'])) {
-        $compras = json_decode($_POST['compras_data'], true);
-        if (is_array($compras) && count($compras) > 0) {
-            $stmt = $conn->prepare(
-              "INSERT INTO compras_internas
-                 (forma_pago, periodo_pago,
-                  nombre_producto, numero_cuenta_contable,
-                  valor_iva, valor_sin_iva,
-                  total_producto_sin_iva, total_iva,
-                  total_sin_iva_general, total_general,
-                  fecha_registro)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
-            );
-            if (! $stmt) {
-                die("Error al preparar SQL: " . $conn->error);
-            }
-            foreach ($compras as $c) {
-                $stmt->bind_param(
-                  'ssssdddddd',
-                  $c['forma_pago'],
-                  $c['periodo_pago'],
-                  $c['nombre_producto'],
-                  $c['numero_cuenta_contable'],
-                  $c['valor_iva'],
-                  $c['valor_sin_iva'],
-                  $c['total_producto_sin_iva'],
-                  $c['total_iva'],
-                  $c['total_sin_iva_general'],
-                  $c['total_general']
-                );
-                $stmt->execute();
-            }
-            $stmt->close();
-            header("Location: compras.php?success=1");
-            exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_invoice'])) {
+    // 1) Decodificamos el JSON
+    $compras = json_decode($_POST['compras_data'], true);
+    if (!is_array($compras) || empty($compras)) {
+        die("No hay datos de compras para guardar.");
+    }
+
+    // 2) Preparamos el INSERT (adaptar columnas según tu tabla)
+    $stmt = $conn->prepare("
+      INSERT INTO compras_internas
+        (forma_pago, periodo_pago, nombre_producto, numero_cuenta_contable,
+         valor_iva, valor_sin_iva, total_producto_sin_iva, total_iva,
+         total_sin_iva_general, total_general)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    if (!$stmt) {
+        die("Error al preparar statement: " . $conn->error);
+    }
+
+    // 3) Recorremos cada compra y la insertamos
+    foreach ($compras as $c) {
+        $stmt->bind_param(
+          'ssssdddddd',
+          $c['forma_pago'],
+          $c['periodo_pago'],
+          $c['nombre_producto'],
+          $c['numero_cuenta_contable'],
+          $c['valor_iva'],
+          $c['valor_sin_iva'],
+          $c['valor_sin_iva'],          // total_producto_sin_iva = valor_sin_iva
+          $c['valor_iva'],               // total_iva = valor_iva
+          $c['total_sin_iva_general'],
+          $c['total_general']
+        );
+        if (! $stmt->execute()) {
+            die("Error al insertar compra: " . $stmt->error);
         }
     }
-    // si no hay datos válidos
-    header("Location: compras.php?error=1");
+    $stmt->close();
+
+    // 4) Redirigimos con éxito
+    header("Location: compras.php?success=1");
     exit;
 }
 
@@ -287,7 +288,29 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
                     </a>
                   </li>
 
+                 <li class="nav-item">
+                    <a href="../widgets/factura_planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Factura Planillas</p>
+                    </a>
+                  </li>
+                  
 
+      <li class="nav-item">
+                    <a href="../widgets/librodiarip.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Diario</p>
+                    </a>
+                  </li>
+
+
+
+                   <li class="nav-item">
+                    <a href="../widgets/libro_mayor.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Mayor</p>
+                    </a>
+                  </li>
 
                 </ul>
               </li>
@@ -301,94 +324,189 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
         <!--end::Sidebar Wrapper-->
       </aside>
       <!--end::Sidebar-->
-        <!--begin::App Main-->     <main class="app-main p-4">
-      <div class="container">
-        <h3 class="mb-4">Registro de Compras Internas</h3>
+        <!--begin::App Main-->
+  <main class="app-main p-4">
+  <div class="container">
 
-        <?php if (isset($_GET['success'])): ?>
-          <script>
-            Swal.fire({
-              icon: 'success',
-              title: '¡Compras registradas!',
-              showConfirmButton: false,
-              timer: 1500
-            });
-          </script>
-        <?php endif; ?>
 
-        <form id="comprasForm" method="POST" novalidate class="row g-3 border p-4 rounded bg-light shadow-sm">
-          <div class="col-md-4">
-            <label class="form-label">Forma de pago</label>
-            <select name="forma_pago" id="forma_pago" class="form-select" required>
-              <?php foreach ($formas_pago as $f): ?>
-                <option><?= htmlspecialchars($f) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Periodo de compra</label>
-            <input type="text" name="periodo_pago" id="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Nombre del producto comprado</label>
-            <input type="text" name="nombre_producto" id="nombre_producto" class="form-control" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Número de cuenta contable</label>
-            <input type="text" name="numero_cuenta_contable" id="numero_cuenta_contable" class="form-control" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Valor del IVA</label>
-            <input type="number" step="0.01" name="valor_iva" id="valor_iva" class="form-control" value="0" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Valor sin IVA</label>
-            <input type="number" step="0.01" name="valor_sin_iva" id="valor_sin_iva" class="form-control" value="0" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total del producto sin IVA</label>
-            <input type="number" step="0.01" name="total_producto_sin_iva" id="total_producto_sin_iva" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total del IVA</label>
-            <input type="number" step="0.01" name="total_iva" id="total_iva" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total sin IVA general</label>
-            <input type="number" step="0.01" name="total_sin_iva_general" id="total_sin_iva_general" class="form-control" readonly>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Total general</label>
-            <input type="number" step="0.01" name="total_general" id="total_general" class="form-control" readonly>
-          </div>
+      <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
 
-          <div class="col-12 text-start">
-            <button type="button" id="addCompra" class="btn btn-secondary">＋ Agregar Compra</button>
-          </div>
+    <h3 class="mb-4">Registro de Compras Internas</h3>
 
-          <div class="col-12 mt-4">
-            <h5>Compras a registrar</h5>
-            <table class="table table-sm table-bordered" id="comprasTable">
-              <thead class="table-light">
-                <tr>
-                  <th>#</th><th>Forma pago</th><th>Periodo</th><th>Producto</th>
-                  <th>Cuenta</th><th>Valor IVA</th><th>Valor sin IVA</th>
-                  <th>Total sin IVA</th><th>Total IVA</th><th>Total general</th><th>Acción</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+    <?php if (isset($_GET['success'])): ?>
+      <script>
+        Swal.fire({
+          icon: 'success',
+          title: '¡Compras registradas!',
+          showConfirmButton: false,
+          timer: 1500
+        });
+      </script>
+    <?php endif; ?>
 
-          <input type="hidden" name="compras_data" id="compras_data" value="">
-
-          <div class="col-12 text-end">
-            <button name="save_invoice" type="submit" class="btn btn-success">💾 Registrar Compras</button>
-          </div>
-        </form>
+    <form id="comprasForm" method="POST" novalidate class="row g-3 border p-4 rounded bg-light shadow-sm">
+      <div class="col-md-4">
+        <label class="form-label">Forma de pago</label>
+        <select name="forma_pago" id="forma_pago" class="form-select" required>
+          <?php foreach ($formas_pago as $f): ?>
+            <option><?= htmlspecialchars($f) ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
-    </main>
-    <footer class="app-footer">
+      <div class="col-md-4">
+        <label class="form-label">Periodo de compra</label>
+        <input type="text" name="periodo_pago" id="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Nombre del producto comprado</label>
+        <input type="text" name="nombre_producto" id="nombre_producto" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Número de cuenta contable</label>
+        <input type="text" name="numero_cuenta_contable" id="numero_cuenta_contable" class="form-control" required>
+      </div>
+
+      <!-- Aquí el precio del producto, ya incluye IVA -->
+      <div class="col-md-4">
+        <label class="form-label">Precio del producto (incluye IVA 12%)</label>
+        <input type="number" step="0.01" name="precio_producto" id="precio_producto" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Valor sin IVA</label>
+        <input type="number" step="0.01" name="valor_sin_iva" id="valor_sin_iva" class="form-control" readonly>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Valor del IVA</label>
+        <input type="number" step="0.01" name="valor_iva" id="valor_iva" class="form-control" readonly>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Total sin IVA</label>
+        <input type="number" step="0.01" name="total_sin_iva_general" id="total_sin_iva_general" class="form-control" readonly>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Total general</label>
+        <input type="number" step="0.01" name="total_general" id="total_general" class="form-control" readonly>
+      </div>
+
+      <div class="col-12 text-start">
+        <button type="button" id="addCompra" class="btn btn-secondary">＋ Agregar Compra</button>
+      </div>
+
+      <div class="col-12 mt-4">
+        <h5>Compras a registrar</h5>
+        <table class="table table-sm table-bordered" id="comprasTable">
+          <thead class="table-light">
+            <tr>
+              <th>#</th><th>Forma pago</th><th>Periodo</th><th>Producto</th>
+              <th>Cuenta</th><th>Precio</th><th>Valor sin IVA</th>
+              <th>Valor IVA</th><th>Total sin IVA</th><th>Total general</th><th>Acción</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <input type="hidden" name="compras_data" id="compras_data" value="">
+
+      <div class="col-12 text-end">
+        <button name="save_invoice" type="submit" class="btn btn-success">💾 Registrar Compras</button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script>
+(function() {
+  const compras = [];
+  const tableBody = document.querySelector('#comprasTable tbody');
+  const formaPagoEl          = document.getElementById('forma_pago');
+  const periodoPagoEl        = document.getElementById('periodo_pago');
+  const nombreProductoEl     = document.getElementById('nombre_producto');
+  const cuentaContableEl     = document.getElementById('numero_cuenta_contable');
+  const precioEl             = document.getElementById('precio_producto');
+  const valorSinIvaEl        = document.getElementById('valor_sin_iva');
+  const valorIvaEl           = document.getElementById('valor_iva');
+  const totalSinIvaGenEl     = document.getElementById('total_sin_iva_general');
+  const totalGeneralEl       = document.getElementById('total_general');
+  const comprasDataEl        = document.getElementById('compras_data');
+  const addBtn               = document.getElementById('addCompra');
+  const formEl               = document.getElementById('comprasForm');
+
+  // Recalcular a partir del precio con IVA
+  function recalc() {
+    const price  = parseFloat(precioEl.value) || 0;
+    const sinIva = price / 1.12;
+    const iva    = price - sinIva;
+    valorSinIvaEl.value    = sinIva.toFixed(2);
+    valorIvaEl.value       = iva.toFixed(2);
+    totalSinIvaGenEl.value = sinIva.toFixed(2);
+    totalGeneralEl.value   = price.toFixed(2);
+  }
+  precioEl.addEventListener('input', recalc);
+  recalc();
+
+  addBtn.addEventListener('click', function() {
+    const compra = {
+      forma_pago:              formaPagoEl.value.trim(),
+      periodo_pago:            periodoPagoEl.value.trim(),
+      nombre_producto:         nombreProductoEl.value.trim(),
+      numero_cuenta_contable:  cuentaContableEl.value.trim(),
+      precio_producto:         parseFloat(precioEl.value)            || 0,
+      valor_sin_iva:           parseFloat(valorSinIvaEl.value)       || 0,
+      valor_iva:               parseFloat(valorIvaEl.value)          || 0,
+      total_sin_iva_general:   parseFloat(totalSinIvaGenEl.value)    || 0,
+      total_general:           parseFloat(totalGeneralEl.value)      || 0
+    };
+    if (!compra.forma_pago || !compra.periodo_pago ||
+        !compra.nombre_producto || !compra.numero_cuenta_contable ||
+        compra.precio_producto <= 0) {
+      return Swal.fire('Completa todos los campos y un precio válido.', '', 'warning');
+    }
+    compras.push(compra);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${compras.length}</td>
+      <td>${compra.forma_pago}</td>
+      <td>${compra.periodo_pago}</td>
+      <td>${compra.nombre_producto}</td>
+      <td>${compra.numero_cuenta_contable}</td>
+      <td>Q${compra.precio_producto.toFixed(2)}</td>
+      <td>Q${compra.valor_sin_iva.toFixed(2)}</td>
+      <td>Q${compra.valor_iva.toFixed(2)}</td>
+      <td>Q${compra.total_sin_iva_general.toFixed(2)}</td>
+      <td>Q${compra.total_general.toFixed(2)}</td>
+      <td><button type="button" class="btn btn-sm btn-danger btn-remove">✕</button></td>
+    `;
+    tableBody.appendChild(tr);
+    tr.querySelector('.btn-remove').addEventListener('click', () => {
+      const idx = Array.from(tableBody.children).indexOf(tr);
+      compras.splice(idx, 1);
+      tr.remove();
+      Array.from(tableBody.children).forEach((r,i) =>
+        r.firstElementChild.textContent = i+1
+      );
+    });
+
+    formEl.reset();
+    recalc();
+  });
+
+  formEl.addEventListener('submit', function(e) {
+    if (compras.length === 0) {
+      e.preventDefault();
+      return Swal.fire('Agrega al menos una compra antes de registrar.', '', 'error');
+    }
+    comprasDataEl.value = JSON.stringify(compras);
+  });
+})();
+</script>
+  <footer class="app-footer">
       <div class="float-end d-none d-sm-inline">RabinalArts</div>
       <strong>&copy; 2014-2025</strong> Todos los derechos reservados.
     </footer>

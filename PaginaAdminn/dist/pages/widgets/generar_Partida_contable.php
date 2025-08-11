@@ -1,3 +1,4 @@
+
 <?php
 // generar_Partida_contable.php
 include 'conexion.php';
@@ -24,15 +25,71 @@ $cuentas = mysqli_query($conn,"
   <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
-    .debe-input[readonly], .haber-input[readonly] {
-      background-color: #e9ecef;
-      opacity: 1;
+    body {
+      font-family: 'Times New Roman', serif;
+      font-size: 12px;
     }
-    .section-table th, .section-table td { vertical-align: middle; }
-    .total-row th { border-top: 2px solid #000; }
+    
+    .debe-input[readonly], .haber-input[readonly] {
+      background-color: #d3d3d3 !important;
+      opacity: 1;
+      color: #666;
+    }
+    
+    .partida-table {
+      border: 2px solid #000;
+      background: white;
+      margin-top: 20px;
+    }
+    
+    .partida-table th, .partida-table td {
+      border: 1px solid #000;
+      padding: 8px;
+      vertical-align: middle;
+    }
+    
+    .partida-table thead th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+      text-align: center;
+    }
+    
+    .cuenta-nombre {
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+    
+    .final-totals {
+      border-top: 2px solid #000;
+      background-color: #e9ecef;
+      font-weight: bold;
+    }
+    
+    .amounts-column {
+      width: 120px;
+      text-align: right;
+    }
+    
+    .cuenta-column {
+      width: 300px;
+    }
+    
+    .descripcion-totales {
+      font-style: italic;
+      color: #666;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body class="p-4">
+
+    <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
+
   <h1 class="mb-3">Partida Contable (Cliente #<?= $cliente_id ?>)</h1>
   <input type="hidden" id="cliente_id" value="<?= $cliente_id ?>">
 
@@ -70,56 +127,26 @@ $cuentas = mysqli_query($conn,"
     <textarea id="descripcion" class="form-control" rows="2" placeholder="Escribe una descripción..."></textarea>
   </div>
 
-  <?php
-  $sections = ['Activo','Pasivo','Patrimonio Neto'];
-  foreach ($sections as $sec):
-    $key = strtolower(str_replace(' ', '-', $sec));
-  ?>
+  <!-- Tabla única continua -->
   <div class="mb-4">
-    <h4><?= $sec ?></h4>
-    <table id="table-<?= $key ?>" class="table table-bordered section-table">
-      <thead class="table-light">
+    <table id="tabla-partida" class="table partida-table">
+      <thead>
         <tr>
-          <th>Cuenta</th>
-          <th style="width:25%">Debe</th>
-          <th style="width:25%">Haber</th>
+          <th class="cuenta-column">Cuenta</th>
+          <th class="amounts-column">Debe</th>
+          <th class="amounts-column">Haber</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="tbody-cuentas">
+        <!-- Las cuentas se insertan aquí dinámicamente en orden: Activo, Pasivo, Patrimonio -->
+      </tbody>
       <tfoot>
-        <tr class="total-row">
-          <th>Total <?= $sec ?>:</th>
-          <th class="text-end"><span class="total-debe">0.00</span></th>
-          <th class="text-end"><span class="total-haber">0.00</span></th>
+        <tr class="final-totals">
+          <td class="descripcion-totales"><span id="descripcion-final">Descripción de la partida:</span></td>
+          <td class="text-end"><strong><span id="total-debe">0.00</span></strong></td>
+          <td class="text-end"><strong><span id="total-haber">0.00</span></strong></td>
         </tr>
       </tfoot>
-    </table>
-  </div>
-  <?php endforeach; ?>
-
-  <div class="row mb-4">
-    <div class="col-6"></div>
-    <div class="col-3 text-end"><strong>Total Debe:</strong> <span id="global-debe">0.00</span></div>
-    <div class="col-3 text-end"><strong>Total Haber:</strong> <span id="global-haber">0.00</span></div>
-  </div>
-
-  <div class="mb-4">
-    <h4>Resumen Global</h4>
-    <table class="table table-bordered">
-      <thead class="table-light">
-        <tr>
-          <th>Descripción</th>
-          <th>Total Debe</th>
-          <th>Total Haber</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td id="preview-descripcion"></td>
-          <td class="text-end" id="preview-debe">0.00</td>
-          <td class="text-end" id="preview-haber">0.00</td>
-        </tr>
-      </tbody>
     </table>
   </div>
 
@@ -143,8 +170,38 @@ $cuentas = mysqli_query($conn,"
     function seccionPara(clasif) {
       clasif = clasif.toLowerCase();
       if (clasif.includes('pasivo')) return 'pasivo';
-      if (clasif.includes('patrimonio')||clasif.includes('capital')) return 'patrimonio-neto';
+      if (clasif.includes('patrimonio')||clasif.includes('capital')) return 'patrimonio';
       return 'activo';
+    }
+
+    function ordenSeccion(seccion) {
+      // Define el orden: activo = 1, pasivo = 2, patrimonio = 3
+      if (seccion === 'activo') return 1;
+      if (seccion === 'pasivo') return 2;
+      if (seccion === 'patrimonio') return 3;
+      return 4;
+    }
+
+    function reordenarTabla() {
+      // Obtener todas las filas y ordenarlas por sección
+      let filas = [];
+      $('#tbody-cuentas tr[data-id]').each(function() {
+        let seccion = $(this).data('seccion');
+        let orden = ordenSeccion(seccion);
+        filas.push({
+          orden: orden,
+          elemento: $(this).clone(true)
+        });
+        $(this).remove();
+      });
+
+      // Ordenar por sección
+      filas.sort((a, b) => a.orden - b.orden);
+
+      // Volver a insertar en orden
+      filas.forEach(fila => {
+        $('#tbody-cuentas').append(fila.elemento);
+      });
     }
 
     function manejarCambio(sel, tipo) {
@@ -154,59 +211,92 @@ $cuentas = mysqli_query($conn,"
           let id = this.value,
               existe = vals.includes(id),
               fila   = $(`tr[data-id="${id}"][data-tipo="${tipo}"]`);
+          
           if (existe && !fila.length) {
             let nombre = $(this).data('nombre'),
-                sec    = seccionPara($(this).data('clasificacion')),
+                clasif = $(this).data('clasificacion'),
+                sec    = seccionPara(clasif),
                 row    = $(`
-                  <tr data-id="${id}" data-tipo="${tipo}">
-                    <td>${nombre}</td>
-                    <td><input type="number" step="0.01" class="form-control debe-input" ${tipo==='haber'?'readonly':''}></td>
-                    <td><input type="number" step="0.01" class="form-control haber-input" ${tipo==='debe'?'readonly':''}></td>
+                  <tr data-id="${id}" data-tipo="${tipo}" data-seccion="${sec}">
+                    <td class="cuenta-nombre">${nombre}</td>
+                    <td class="text-end">
+                      <input type="number" step="0.01" class="form-control debe-input text-end" 
+                             ${tipo==='haber'?'readonly':''} style="border:none; background:transparent;">
+                    </td>
+                    <td class="text-end">
+                      <input type="number" step="0.01" class="form-control haber-input text-end" 
+                             ${tipo==='debe'?'readonly':''} style="border:none; background:transparent;">
+                    </td>
                   </tr>
                 `);
-            $(`#table-${sec} tbody`).append(row);
+            $('#tbody-cuentas').append(row);
+            reordenarTabla();
           }
-          if (!existe && fila.length) fila.remove();
+          if (!existe && fila.length) {
+            fila.remove();
+          }
         });
         recalcular();
       });
     }
+    
     manejarCambio('selectDebe','debe');
     manejarCambio('selectHaber','haber');
 
     function recalcular(){
-      let gD=0, gH=0;
-      ['activo','pasivo','patrimonio-neto'].forEach(sec=>{
-        let tD=0,tH=0;
-        $(`#table-${sec} .debe-input`).each((_,el)=>tD+=parseFloat(el.value)||0);
-        $(`#table-${sec} .haber-input`).each((_,el)=>tH+=parseFloat(el.value)||0);
-        $(`#table-${sec} .total-debe`).text(tD.toFixed(2));
-        $(`#table-${sec} .total-haber`).text(tH.toFixed(2));
-        gD+=tD; gH+=tH;
+      let totalDebe = 0, totalHaber = 0;
+      
+      $('.debe-input').each(function(){
+        totalDebe += parseFloat($(this).val()) || 0;
       });
-      $('#global-debe').text(gD.toFixed(2));
-      $('#global-haber').text(gH.toFixed(2));
-      $('#preview-descripcion').text($('#descripcion').val());
-      $('#preview-debe').text(gD.toFixed(2));
-      $('#preview-haber').text(gH.toFixed(2));
+      
+      $('.haber-input').each(function(){
+        totalHaber += parseFloat($(this).val()) || 0;
+      });
+      
+      $('#total-debe').text(totalDebe.toFixed(2));
+      $('#total-haber').text(totalHaber.toFixed(2));
     }
 
+    // Actualizar descripción en tiempo real
+    $('#descripcion').on('input', function() {
+      let desc = $(this).val();
+      if (desc.trim() === '') {
+        $('#descripcion-final').text('Descripción de la partida:');
+      } else {
+        $('#descripcion-final').text(desc + ':');
+      }
+    });
+
     $(document).on('input change keyup', '.debe-input, .haber-input', recalcular);
-    $('#descripcion').on('input', ()=>$('#preview-descripcion').text($('#descripcion').val()));
     recalcular();
 
     $('#btnGuardar').on('click', function(){
-      if ($('#global-debe').text() !== $('#global-haber').text()) {
+      let totalDebe = parseFloat($('#total-debe').text());
+      let totalHaber = parseFloat($('#total-haber').text());
+      
+      if (totalDebe !== totalHaber) {
         return Swal.fire({icon:'error',title:'Error',text:'Debe debe igualar a Haber.'});
       }
+      
       let detalles = [];
       $('tr[data-id]').each(function(){
-        detalles.push({
-          cuenta_id: $(this).data('id'),
-          debe:      parseFloat($(this).find('.debe-input').val())||0,
-          haber:     parseFloat($(this).find('.haber-input').val())||0
-        });
+        let debe = parseFloat($(this).find('.debe-input').val()) || 0;
+        let haber = parseFloat($(this).find('.haber-input').val()) || 0;
+        
+        if (debe > 0 || haber > 0) {
+          detalles.push({
+            cuenta_id: $(this).data('id'),
+            debe: debe,
+            haber: haber
+          });
+        }
       });
+      
+      if (detalles.length === 0) {
+        return Swal.fire({icon:'error',title:'Error',text:'Debe agregar al menos una cuenta con monto.'});
+      }
+      
       $.ajax({
         url: 'guardar_partida.php',
         method: 'POST',

@@ -299,7 +299,29 @@ $empleados = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
                     </a>
                   </li>
 
+                 <li class="nav-item">
+                    <a href="../widgets/factura_planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Factura Planillas</p>
+                    </a>
+                  </li>
+                  
 
+      <li class="nav-item">
+                    <a href="../widgets/librodiarip.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Diario</p>
+                    </a>
+                  </li>
+
+
+
+                   <li class="nav-item">
+                    <a href="../widgets/libro_mayor.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Mayor</p>
+                    </a>
+                  </li>
 
 
 
@@ -318,6 +340,16 @@ $empleados = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
       <!--begin::App Main-->
       <main class="app-main">
         <div class="container-fluid p-4">
+
+
+
+            <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
+
           <h2>Gestión de Empleados</h2>
 
           <?php if ($edit_mode): ?>

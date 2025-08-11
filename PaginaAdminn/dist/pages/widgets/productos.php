@@ -237,6 +237,32 @@
                   
                 </ul>
               </li>
+
+
+
+                               <li class="nav-item">
+                    <a href="../widgets/factura_planilla.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Factura Planillas</p>
+                    </a>
+                  </li>
+                  
+
+      <li class="nav-item">
+                    <a href="../widgets/librodiarip.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Diario</p>
+                    </a>
+                  </li>
+
+
+
+                   <li class="nav-item">
+                    <a href="../widgets/libro_mayor.php" class="nav-link active">
+                      <i class="nav-icon bi bi-circle"></i>
+                      <p>Libro Mayor</p>
+                    </a>
+                  </li>
 x
 
             </ul>
@@ -255,6 +281,16 @@ x
 <main class="app-main">
   <!-- Encabezado Gestión de Productos Externos -->
   <div class="app-content-header">
+
+
+
+      <!-- Logo en la esquina superior -->
+    <div style="position: relative;">
+      <img src="../../../dist/assets/img/rabi.png" 
+           alt="Logo Rabinalarts" 
+           style="position: absolute; top: 0; right: 0; height: 60px;">
+    </div>
+
     <div class="container-fluid">
       <div class="row">
         <div class="col-sm-6">

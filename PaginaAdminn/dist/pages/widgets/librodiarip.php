@@ -2,43 +2,36 @@
 // venta_factura.php
 session_start();
 include 'conexion.php';
+// 1) Parámetros de filtro
+$from = $_GET['from'] ?? date('Y-m-01');
+$to   = $_GET['to']   ?? date('Y-m-d');
 
-// Inicializar detalle si no existe
-if (!isset($_SESSION['factura_detalle'])) {
-    $_SESSION['factura_detalle'] = [];
+// Escapamos para seguridad
+$from_sql = $conn->real_escape_string($from);
+$to_sql   = $conn->real_escape_string($to);
+
+// 2) Partidas de Compras
+$sql_comp = "
+  SELECT id, descripcion, created_at AS fecha
+  FROM partidas_contables_compras
+  WHERE DATE(created_at) BETWEEN '$from_sql' AND '$to_sql'
+  ORDER BY created_at DESC
+";
+$res_comp = $conn->query($sql_comp);
+if (! $res_comp) {
+    die("Error en consulta de partidas de compras: " . $conn->error);
 }
 
-$mensaje = "";
-
-// Agregar producto
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['agregar'])) {
-    $producto_id = $_POST['producto_id'];
-    $cantidad = $_POST['cantidad'];
-    $sql = $conn->query("SELECT nombre, precio FROM productos WHERE id = $producto_id");
-    if ($row = $sql->fetch_assoc()) {
-        $_SESSION['factura_detalle'][] = [
-            'producto_id' => $producto_id,
-            'nombre' => $row['nombre'],
-            'cantidad' => $cantidad,
-            'precio' => $row['precio'],
-            'subtotal' => $row['precio'] * $cantidad
-        ];
-    }
-}
-
-// Buscar cliente por ID
-$cliente_info = [];
-if (isset($_GET['cliente_id'])) {
-    $cid = (int) $_GET['cliente_id'];
-    $sql = $conn->query("SELECT * FROM usuarios WHERE id = $cid");
-    $cliente_info = $sql->fetch_assoc();
-
-    // Obtener ultima venta
-    $venta = $conn->query("SELECT * FROM ventas WHERE cliente_id = $cid ORDER BY id DESC LIMIT 1")->fetch_assoc();
-    $venta_id = $venta['id'] ?? 0;
-    if ($venta_id) {
-        $detalles = $conn->query("SELECT d.*, p.nombre FROM detalle_venta d JOIN productos p ON d.producto_id = p.id WHERE d.venta_id = $venta_id");
-    }
+// 3) Partidas de Ventas
+$sql_vent = "
+  SELECT id, cliente_id, descripcion, fecha
+  FROM partidas_contables_ventas
+  WHERE DATE(fecha) BETWEEN '$from_sql' AND '$to_sql'
+  ORDER BY fecha DESC
+";
+$res_vent = $conn->query($sql_vent);
+if (! $res_vent) {
+    die("Error en consulta de partidas de ventas: " . $conn->error);
 }
 ?>
 
@@ -275,7 +268,7 @@ if (isset($_GET['cliente_id'])) {
                     </a>
                   </li>
 
-<li class="nav-item">
+                    <li class="nav-item">
                     <a href="../widgets/movimientos_contables.php" class="nav-link active">
                       <i class="nav-icon bi bi-circle"></i>
                       <p>Movimientos contables y jornalizaciones</p>
@@ -322,224 +315,336 @@ if (isset($_GET['cliente_id'])) {
       <!--end::Sidebar-->
       <!--begin::App Main-->
 
-
-      
 <main class="app-main p-4">
-  <div class="container">
-
-
-      <!-- Logo en la esquina superior -->
+  <div class="container-fluid">
+        <!-- Logo en la esquina superior -->
     <div style="position: relative;">
       <img src="../../../dist/assets/img/rabi.png" 
            alt="Logo Rabinalarts" 
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
-    <h1 class="mb-4">Generar Factura</h1>
+    <h1 class="mb-4">Gestión de Movimientos Contables</h1>
 
-    <!-- Encabezado Empresa -->
-    <div class="mb-3">
-      <h4 class="fw-bold">RABINALARTS</h4>
-      <p><strong>Fecha:</strong> <?= date("Y-m-d") ?> | <strong>Folio:</strong> <?= rand(10000, 99999) ?></p>
-    </div>
-
-    <!-- Buscar cliente -->
-    <form method="GET" class="row g-3 mb-4">
+    <!-- Filtro de fechas -->
+    <form method="GET" class="row g-3 align-items-end mb-4">
       <div class="col-md-3">
-        <label for="cliente_id" class="form-label">ID Cliente</label>
-        <input type="number" name="cliente_id" id="cliente_id" class="form-control" required>
+        <label for="from" class="form-label">Desde</label>
+        <input
+          type="date"
+          id="from"
+          name="from"
+          class="form-control"
+          value="<?= htmlspecialchars($from) ?>"
+        >
       </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" class="btn btn-dark">Buscar Cliente</button>
+      <div class="col-md-3">
+        <label for="to" class="form-label">Hasta</label>
+        <input
+          type="date"
+          id="to"
+          name="to"
+          class="form-control"
+          value="<?= htmlspecialchars($to) ?>"
+        >
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-funnel-fill"></i> Filtrar
+        </button>
       </div>
     </form>
 
-    <!-- Mostrar datos cliente en tabla -->
-    <?php if (!empty($cliente_info)): ?>
-      <div class="mb-4">
-        <h5>Datos del Cliente</h5>
-        <table class="table table-bordered bg-light">
-          <thead class="table-secondary">
-            <tr>
-              <th>Campo</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>ID</td>
-              <td><?= $cliente_info['id'] ?></td>
-            </tr>
-            <tr>
-              <td>Nombre</td>
-              <td><?= htmlspecialchars($cliente_info['nombre']) ?></td>
-            </tr>
-            <tr>
-              <td>Correo</td>
-              <td><?= htmlspecialchars($cliente_info['correo']) ?></td>
-            </tr>
-            <tr>
-              <td>Teléfono</td>
-              <td><?= htmlspecialchars($cliente_info['telefono']) ?></td>
-            </tr>
-            <tr>
-              <td>Dirección</td>
-              <td><?= htmlspecialchars($cliente_info['direccion']) ?></td>
-            </tr>
-          </tbody>
-        </table>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 12px;
+        }
+        
+        .libro-diario {
+            border: 2px solid #000;
+            background: white;
+            margin-top: 20px;
+        }
+        
+        .libro-header {
+            text-align: center;
+            padding: 15px;
+            border-bottom: 2px solid #000;
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        .partida-row {
+            border-bottom: 1px solid #000;
+            min-height: 40px;
+            display: flex;
+        }
+        
+        .partida-number {
+            border-right: 2px solid #000;
+            width: 60px;
+            padding: 8px 5px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        
+        .partida-fecha-header {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .partida-content {
+            padding: 8px 10px;
+            flex: 1;
+        }
+        
+        .cuenta-row {
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .cuenta-numero {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .cuenta-nombre {
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .cuenta-subcuenta {
+            margin-left: 30px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        
+        .cuenta-descripcion {
+            margin: 8px 0;
+            margin-left: 20px;
+            font-size: 11px;
+            font-style: italic;
+            color: #666;
+            line-height: 1.3;
+            font-weight: bold;
+        }
+        
+        .amounts-column {
+            width: 120px;
+            border-left: 1px solid #000;
+            padding: 8px 5px;
+            text-align: right;
+        }
+        
+        .amounts-column-haber {
+            width: 120px;
+            border-left: 1px solid #000;
+            padding: 8px 5px;
+            text-align: right;
+        }
+        
+        .amount-cell {
+            margin: 2px 0;
+            min-height: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .currency {
+            margin-right: 5px;
+        }
+        
+        .amount-debe {
+            color: #000;
+        }
+        
+        .amount-haber {
+            color: #000;
+            margin-left: 20px;
+        }
+        
+        .final-totals {
+            border: 1px solid #000;
+            background-color: #e9ecef;
+            text-align: right;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 5px;
+            margin-top: 5px;
+        }
+        
+        .partida-totals {
+            display: none;
+        }
+    </style>
 
-        <!-- Botones que solo aparecen después de buscar cliente -->
-        <div class="d-flex gap-2">
-          <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>"
-             class="btn btn-outline-danger"
-             target="_blank">
-            Exportar como PDF
-          </a>
-          <button
-            type="button"
-            id="btnPartidaContable"
-            class="btn btn-outline-danger"
-          >
-            Generar Partida contable
-          </button>
+    <?php
+    // Tu código PHP existente + PLANILLA añadida
+    $sql_diario = "
+      SELECT p.id AS partida_id, p.created_at AS fecha, p.descripcion,
+             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
+      FROM partidas_contables_compras p
+      JOIN partidas_contables_compras_detalle d ON d.partida_id = p.id
+      JOIN cuentas_contables c ON c.id = d.cuenta_id
+      WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
+
+      UNION ALL
+
+      SELECT p.id AS partida_id, p.fecha AS fecha, p.descripcion,
+             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
+      FROM partidas_contables_ventas p
+      JOIN partida_detalle_ventas d ON d.partida_id = p.id
+      JOIN cuentas_contables c ON c.id = d.cuenta_id
+      WHERE DATE(p.fecha) BETWEEN '$from_sql' AND '$to_sql'
+
+      UNION ALL
+
+      SELECT p.id AS partida_id, p.created_at AS fecha, p.descripcion,
+             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
+      FROM partidas_contables_planilla p
+      JOIN partida_detalle_planilla d ON d.partida_id = p.id
+      JOIN cuentas_contables c ON c.id = d.cuenta_id
+      WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
+
+      ORDER BY fecha, partida_id
+    ";
+    $res_diario = $conn->query($sql_diario);
+    if (! $res_diario) {
+      die("Error al obtener Libro Diario: " . $conn->error);
+    }
+
+    $libro = [];
+    while ($row = $res_diario->fetch_assoc()) {
+      $pid = $row['partida_id'];
+      if (!isset($libro[$pid])) {
+        $libro[$pid] = [
+          'fecha'       => $row['fecha'],
+          'descripcion' => $row['descripcion'],
+          'lines'       => []
+        ];
+      }
+      $libro[$pid]['lines'][] = $row;
+    }
+    ?>
+
+    <?php if (empty($libro)): ?>
+      <div class="alert alert-info">No hay partidas en este rango de fechas.</div>
+    <?php else: ?>
+      
+      <!-- Libro Diario -->
+      <div class="libro-diario">
+        <!-- Header del libro -->
+        <div class="libro-header">
+          <div style="font-size: 14px; font-weight: bold;">LIBRO DIARIO</div>
+          <div style="font-size: 12px;">RabinalArts", del <?= date('d/m/Y', strtotime($from)) ?> al <?= date('d/m/Y', strtotime($to)) ?></div>
+          <div style="font-size: 11px;">(Cifras en Quetzales)</div>
         </div>
-      </div>
-    <?php endif; ?>
 
-    <!-- Última factura del cliente -->
-    <?php if (!empty($detalles)): ?>
-      <div class="mb-4">
-        <h5>Última Factura Registrada</h5>
-        <table class="table table-bordered">
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Cantidad</th>
-              <th>Precio Unitario ($)</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
+        <?php $contador = 1; ?>
+        <?php foreach ($libro as $pid => $section): ?>
           <?php
-          $total_ultima = 0;
-          $rows = [];
-          while ($row = $detalles->fetch_assoc()) {
-              $rows[] = $row;
-              $total_ultima += $row['total'];
-          }
-          $iva_ultima = $total_ultima * 0.12;
-          $total_con_iva_ultima = $total_ultima + $iva_ultima;
+            $sumDebe  = array_sum(array_column($section['lines'], 'debe'));
+            $sumHaber = array_sum(array_column($section['lines'], 'haber'));
+            $lineCount = count($section['lines']);
           ?>
-
-          <?php foreach ($rows as $row): ?>
-          <tr>
-            <td><?= htmlspecialchars($row['nombre']) ?></td>
-            <td><?= $row['cantidad'] ?></td>
-            <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
-            <td>$<?= number_format($row['total'], 2) ?></td>
-          </tr>
-          <?php endforeach; ?>
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="3" class="text-end">Subtotal:</th>
-              <th>$<?= number_format($total_ultima, 2) ?></th>
-            </tr>
-            <tr>
-              <th colspan="3" class="text-end">IVA (12%):</th>
-              <th>$<?= number_format($iva_ultima, 2) ?></th>
-            </tr>
-            <tr>
-              <th colspan="3" class="text-end">Total con IVA:</th>
-              <th>$<?= number_format($total_con_iva_ultima, 2) ?></th>
-            </tr>
-          </tfoot>
-        </table>
+          
+          <!-- Partida -->
+          <div class="partida-row">
+            <div class="partida-number">Pda<?= $contador ?></div>
+            <div class="partida-content">
+              <!-- Fecha arriba de las cuentas -->
+              <div class="partida-fecha-header"><?= date('d/m/Y', strtotime($section['fecha'])) ?></div>
+              
+              <?php $lineNum = 1; ?>
+              <?php foreach ($section['lines'] as $line): ?>
+                <div class="cuenta-row">
+                  <span class="cuenta-numero"><?= $lineNum ?></span>
+                  <span class="cuenta-nombre"><?= htmlspecialchars($line['cuenta']) ?></span>
+                </div>
+                <?php $lineNum++; ?>
+              <?php endforeach; ?>
+              
+              <!-- Descripción con totales -->
+              <div class="cuenta-descripcion">
+                <?= htmlspecialchars($section['descripcion']) ?>:
+              </div>
+            </div>
+            
+            <!-- Columna DEBE -->
+            <div class="amounts-column">
+              <!-- Espacios vacíos para la fecha -->
+              <div class="amount-cell" style="height: 20px;"></div>
+              
+              <?php foreach ($section['lines'] as $line): ?>
+                <div class="amount-cell">
+                  <?php if ($line['debe'] > 0): ?>
+                    <span class="currency">Q</span>
+                    <span><?= number_format($line['debe'], 2) ?></span>
+                  <?php else: ?>
+                    <span></span>
+                    <span></span>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+              
+              <!-- Total en la línea de descripción -->
+              <div class="final-totals">
+                Q <?= number_format($sumDebe, 2) ?>
+              </div>
+            </div>
+            
+            <!-- Columna HABER -->
+            <div class="amounts-column-haber">
+              <!-- Espacios vacíos para la fecha -->
+              <div class="amount-cell" style="height: 20px;"></div>
+              
+              <?php foreach ($section['lines'] as $line): ?>
+                <div class="amount-cell">
+                  <?php if ($line['haber'] > 0): ?>
+                    <span class="currency">Q</span>
+                    <span><?= number_format($line['haber'], 2) ?></span>
+                  <?php else: ?>
+                    <span></span>
+                    <span></span>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+              
+              <!-- Total en la línea de descripción -->
+              <div class="final-totals">
+                Q <?= number_format($sumHaber, 2) ?>
+              </div>
+            </div>
+          </div>
+          
+          <?php $contador++; ?>
+        <?php endforeach; ?>
       </div>
     <?php endif; ?>
-
-    <!-- Detalle de factura actual -->
-    <?php if (!empty($_SESSION['factura_detalle'])): ?>
-      <h4>Detalle de la factura actual</h4>
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php 
-          $total = 0;
-          foreach ($_SESSION['factura_detalle'] as $item): 
-            $total += $item['subtotal'];
-        ?>
-          <tr>
-            <td><?= htmlspecialchars($item['nombre']) ?></td>
-            <td><?= $item['cantidad'] ?></td>
-            <td>Q<?= number_format($item['precio'], 2) ?></td>
-            <td>Q<?= number_format($item['subtotal'], 2) ?></td>
-          </tr>
-        <?php endforeach; ?>
-
-        <?php
-          $iva = $total * 0.12;
-          $total_final = $total + $iva;
-        ?>
-        </tbody>
-        <tfoot>
-          <tr>
-            <th colspan="3" class="text-end">Subtotal:</th>
-            <th>Q<?= number_format($total, 2) ?></th>
-          </tr>
-          <tr>
-            <th colspan="3" class="text-end">IVA (12%):</th>
-            <th>Q<?= number_format($iva, 2) ?></th>
-          </tr>
-          <tr>
-            <th colspan="3" class="text-end">Total con IVA:</th>
-            <th>Q<?= number_format($total_final, 2) ?></th>
-          </tr>
-        </tfoot>
-      </table>
-
-      <form method="POST" action="guardar_factura.php">
-        <div class="text-end">
-          <button type="submit" class="btn btn-success">Confirmar y Ver Factura</button>
-        </div>
-      </form>
-    <?php endif; ?>
+      <a
+        href="exportar_libro_diario_pdf.php?from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>"
+        class="btn btn-danger"
+        target="_blank"
+      >
+        <i class="bi bi-file-earmark-pdf"></i> Exportar Libro Diario (PDF)
+      </a>
   </div>
-
-  <script>
-    document.getElementById('btnPartidaContable')?.addEventListener('click', function() {
-      const clienteId = <?= json_encode($cliente_info['id'] ?? '', JSON_NUMERIC_CHECK) ?>;
-      if (!clienteId) return;
-      const url = `generar_Partida_contable.php?cliente_id=${clienteId}`;
-      window.open(
-        url,
-        'PartidaContablePopup',
-        'width=800,'  +
-        'height=600,' +
-        'top=100,'    +
-        'left=100,'   +
-        'menubar=no,' +
-        'toolbar=no,' +
-        'location=no,'+
-        'status=no,'  +
-        'scrollbars=yes,'+
-        'resizable=yes'
-      );
-    });
-  </script>
 </main>
 
 
 
-     
     
     <!--end::App Main-->
       <!--begin::Footer-->
