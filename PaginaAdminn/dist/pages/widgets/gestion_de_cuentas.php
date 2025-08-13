@@ -347,124 +347,175 @@ if (isset($_GET['edit'])) {
 
 
       
- <main class="app-main p-4">
-    <div class="container">
+<main class="app-main p-4">
+  <div class="container">
 
-
-        <!-- Logo en la esquina superior -->
+    <!-- Logo en la esquina superior -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
+      <img src="../../../dist/assets/img/rabi.png"
+           alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
-      <h3 class="mb-4">Gestión de Cuentas Contables</h3>
+    <h3 class="mb-4">Gestión de Cuentas Contables</h3>
 
-      <!-- SweetAlert según acción -->
-      <?php if (isset($_GET['msg'])): ?>
-      <script>
-        document.addEventListener('DOMContentLoaded', () => {
-          let m = "<?= $_GET['msg'] ?>";
-          let titles = {
-            created:   '¡Cuenta creada!',
-            updated:   '¡Cuenta actualizada!',
-            deleted:   '¡Cuenta eliminada!'
-          };
-          Swal.fire({
-            icon: 'success',
-            title: titles[m] || '¡Hecho!',
-            timer: 1500,
-            showConfirmButton: false
-          });
+    <!-- SweetAlert según acción -->
+    <?php if (isset($_GET['msg'])): ?>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        let m = "<?= $_GET['msg'] ?>";
+        let titles = {
+          created: '¡Cuenta creada!',
+          updated: '¡Cuenta actualizada!',
+          deleted: '¡Cuenta eliminada!'
+        };
+        Swal.fire({
+          icon: 'success',
+          title: titles[m] || '¡Hecho!',
+          timer: 1500,
+          showConfirmButton: false
         });
-      </script>
-      <?php endif; ?>
+      });
+    </script>
+    <?php endif; ?>
 
-      <!-- FORMULARIO CREAR / EDITAR -->
-      <form method="POST" class="row g-3 border p-4 rounded bg-light mb-5">
-        <input type="hidden" name="id" value="<?= $edit['id'] ?? 0 ?>">
-        <div class="col-md-4">
-          <label class="form-label">Nombre de cuenta</label>
-          <input type="text" name="nombre" required
-                 class="form-control"
-                 value="<?= htmlspecialchars($edit['nombre'] ?? '') ?>">
-        </div>
-        <div class="col-md-2 form-check">
-          <input type="checkbox" class="form-check-input" id="egr" name="nominal_egreso"
-                 <?= (!empty($edit) && $edit['nominal_egreso'])?'checked':'' ?>>
-          <label for="egr" class="form-check-label">Egreso</label>
-        </div>
-        <div class="col-md-2 form-check">
-          <input type="checkbox" class="form-check-input" id="ing" name="nominal_ingreso"
-                 <?= (!empty($edit) && $edit['nominal_ingreso'])?'checked':'' ?>>
-          <label for="ing" class="form-check-label">Ingreso</label>
-        </div>
-        <div class="col-md-2 form-check">
-          <input type="checkbox" class="form-check-input" id="deb" name="balance_deudor"
-                 <?= (!empty($edit) && $edit['balance_deudor'])?'checked':'' ?>>
-          <label for="deb" class="form-check-label">Deudor</label>
-        </div>
-        <div class="col-md-2 form-check">
-          <input type="checkbox" class="form-check-input" id="acre" name="balance_acreedor"
-                 <?= (!empty($edit) && $edit['balance_acreedor'])?'checked':'' ?>>
-          <label for="acre" class="form-check-label">Acreedor</label>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Clasificación</label>
-          <input type="text" name="clasificacion" required
-                 class="form-control"
-                 value="<?= htmlspecialchars($edit['clasificacion'] ?? '') ?>">
-        </div>
-        <div class="col-12 text-end">
-          <button name="save_account" type="submit"
-                  class="btn btn-<?= $edit ? 'warning':'primary' ?>">
-            <?= $edit ? 'Actualizar':'Crear' ?>
-          </button>
-          <?php if($edit): ?>
-            <a href="gestion_de_cuentas.php" class="btn btn-secondary">Cancelar</a>
-          <?php endif; ?>
-        </div>
-      </form>
+    <!-- FORMULARIO CREAR / EDITAR -->
+    <form method="POST" class="row g-3 border p-4 rounded bg-light mb-5">
+      <input type="hidden" name="id" value="<?= isset($edit['id']) ? (int)$edit['id'] : 0 ?>">
+      <div class="col-md-4">
+        <label class="form-label">Nombre de cuenta</label>
+        <input type="text" name="nombre" required
+               class="form-control"
+               value="<?= htmlspecialchars($edit['nombre'] ?? '', ENT_QUOTES) ?>">
+      </div>
+      <div class="col-md-2 form-check">
+        <input type="checkbox" class="form-check-input" id="egr" name="nominal_egreso"
+               <?= (!empty($edit) && !empty($edit['nominal_egreso'])) ? 'checked' : '' ?>>
+        <label for="egr" class="form-check-label">Egreso</label>
+      </div>
+      <div class="col-md-2 form-check">
+        <input type="checkbox" class="form-check-input" id="ing" name="nominal_ingreso"
+               <?= (!empty($edit) && !empty($edit['nominal_ingreso'])) ? 'checked' : '' ?>>
+        <label for="ing" class="form-check-label">Ingreso</label>
+      </div>
+      <div class="col-md-2 form-check">
+        <input type="checkbox" class="form-check-input" id="deb" name="balance_deudor"
+               <?= (!empty($edit) && !empty($edit['balance_deudor'])) ? 'checked' : '' ?>>
+        <label for="deb" class="form-check-label">Deudor</label>
+      </div>
+      <div class="col-md-2 form-check">
+        <input type="checkbox" class="form-check-input" id="acre" name="balance_acreedor"
+               <?= (!empty($edit) && !empty($edit['balance_acreedor'])) ? 'checked' : '' ?>>
+        <label for="acre" class="form-check-label">Acreedor</label>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Clasificación</label>
+        <input type="text" name="clasificacion" required
+               class="form-control"
+               value="<?= htmlspecialchars($edit['clasificacion'] ?? '', ENT_QUOTES) ?>">
+      </div>
+      <div class="col-12 text-end">
+        <button name="save_account" type="submit"
+                class="btn btn-<?= !empty($edit) ? 'warning' : 'primary' ?>">
+          <?= !empty($edit) ? 'Actualizar' : 'Crear' ?>
+        </button>
+        <?php if (!empty($edit)): ?>
+          <a href="gestion_de_cuentas.php" class="btn btn-secondary">Cancelar</a>
+        <?php endif; ?>
+      </div>
+    </form>
 
-      <!-- LISTADO DE CUENTAS -->
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nombre</th>
-            <th>Egr.</th>
-            <th>Ing.</th>
-            <th>Deudor</th>
-            <th>Acreedor</th>
-            <th>Clasificación</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php
-        $all = $conn->query("SELECT * FROM cuentas_contables ORDER BY id DESC");
-        while($row = $all->fetch_assoc()):
-        ?>
-          <tr>
-            <td><?= $row['id'] ?></td>
-            <td><?= htmlspecialchars($row['nombre']) ?></td>
-            <td><?= $row['nominal_egreso'] ? '✔':'—' ?></td>
-            <td><?= $row['nominal_ingreso'] ? '✔':'—' ?></td>
-            <td><?= $row['balance_deudor'] ? '✔':'—' ?></td>
-            <td><?= $row['balance_acreedor'] ? '✔':'—' ?></td>
-            <td><?= htmlspecialchars($row['clasificacion']) ?></td>
-            <td>
-              <a href="?edit=<?= $row['id'] ?>" class="btn btn-sm btn-warning">✎</a>
-              <a href="?delete=<?= $row['id'] ?>"
-                 onclick="return confirm('¿Eliminar esta cuenta?')"
-                 class="btn btn-sm btn-danger">🗑</a>
-            </td>
-          </tr>
-        <?php endwhile; ?>
-        </tbody>
-      </table>
+    <!-- LISTADO DE CUENTAS -->
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Egr.</th>
+          <th>Ing.</th>
+          <th>Deudor</th>
+          <th>Acreedor</th>
+          <th>Clasificación</th>
+          <th style="width:220px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php
+      $all = $conn->query("SELECT * FROM cuentas_contables ORDER BY id DESC");
+      while ($row = $all->fetch_assoc()):
+      ?>
+        <tr>
+          <td><?= (int)$row['id'] ?></td>
+          <td><?= htmlspecialchars($row['nombre'], ENT_QUOTES) ?></td>
+          <td><?= !empty($row['nominal_egreso']) ? '✔' : '—' ?></td>
+          <td><?= !empty($row['nominal_ingreso']) ? '✔' : '—' ?></td>
+          <td><?= !empty($row['balance_deudor']) ? '✔' : '—' ?></td>
+          <td><?= !empty($row['balance_acreedor']) ? '✔' : '—' ?></td>
+          <td><?= htmlspecialchars($row['clasificacion'], ENT_QUOTES) ?></td>
+          <td class="d-flex gap-2">
+            <a href="?edit=<?= (int)$row['id'] ?>" class="btn btn-sm btn-warning">✎</a>
+            <a href="?delete=<?= (int)$row['id'] ?>"
+               onclick="return confirm('¿Eliminar esta cuenta?')"
+               class="btn btn-sm btn-danger">🗑</a>
+
+            <!-- Botón Saldos -->
+            <button type="button"
+                    class="btn btn-sm btn-info btn-saldos"
+                    data-id="<?= (int)$row['id'] ?>"
+                    data-nombre="<?= htmlspecialchars($row['nombre'], ENT_QUOTES) ?>"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalSaldos">
+              Saldos
+            </button>
+          </td>
+        </tr>
+      <?php endwhile; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal Saldos -->
+  <div class="modal fade" id="modalSaldos" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            Saldos de la cuenta <span id="tituloCuenta"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body p-0" style="min-height:60vh">
+          <iframe id="iframeSaldos" src="" style="border:0;width:100%;height:60vh"></iframe>
+        </div>
+      </div>
     </div>
-  </main>
+  </div>
+
+  <script>
+    // Cargar saldo_cuentas.php en el iframe al abrir el modal
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-saldos');
+      if (!btn) return;
+
+      const id = parseInt(btn.dataset.id || '0', 10);
+      const nombre = btn.dataset.nombre || '';
+      const iframe = document.getElementById('iframeSaldos');
+      const titulo = document.getElementById('tituloCuenta');
+
+      iframe.src = 'saldo_cuentas.php?cuenta_id=' + encodeURIComponent(id);
+      titulo.textContent = `#${id} — ${nombre}`;
+    });
+
+    // Limpiar el iframe al cerrar el modal (libera recursos)
+    const modalEl = document.getElementById('modalSaldos');
+    if (modalEl) {
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        const iframe = document.getElementById('iframeSaldos');
+        if (iframe) iframe.src = '';
+      });
+    }
+  </script>
+</main>
 
 
 

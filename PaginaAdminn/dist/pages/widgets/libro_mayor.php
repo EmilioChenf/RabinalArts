@@ -298,142 +298,288 @@ if (isset($_GET['compra_id'])) {
 
       
 <main class="app-main p-4">
-  <div class="container">
+<?php
+// libro_diario.php — Libro Mayor con filtro de fechas y todas las cuentas
+date_default_timezone_set('America/Guatemala');
+include 'conexion.php';
 
+// Helpers
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function q($n){ return number_format((float)$n, 2, '.', ','); }
+function fecha_es_corta($dt){
+  static $mes = [1=>'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  $ts = strtotime($dt);
+  if ($ts === false) return h($dt);
+  $d  = (int)date('d', $ts);
+  $m  = (int)date('m', $ts);
+  return sprintf('%02d-%s', $d, $mes[$m] ?? date('M', $ts));
+}
 
+// Params
+$saldoInicial = isset($_GET['saldo_inicial']) ? (float)$_GET['saldo_inicial'] : 0.00;
+$desdeRaw     = isset($_GET['desde']) ? trim($_GET['desde']) : '';
+$hastaRaw     = isset($_GET['hasta']) ? trim($_GET['hasta']) : '';
+$esFecha      = fn($s)=> (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $s);
+$desdeOk      = $esFecha($desdeRaw) ? $desdeRaw : '';
+$hastaOk      = $esFecha($hastaRaw) ? $hastaRaw : '';
+$desdeDT      = $desdeOk ? $desdeOk.' 00:00:00' : '1970-01-01 00:00:00';
+$hastaDT      = $hastaOk ? $hastaOk.' 23:59:59' : '9999-12-31 23:59:59';
 
-      <!-- Logo en la esquina superior -->
-    <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
-           style="position: absolute; top: 0; right: 0; height: 60px;">
-    </div>
+// Catálogo de cuentas (todas)
+$cuentasCatalogo = [];
+$res = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
+if ($res) {
+  while ($row = $res->fetch_assoc()) $cuentasCatalogo[] = $row;
+  $res->free();
+}
 
-    <h1 class="mb-4">Generar Factura de Compra Interna</h1>
+// Selección de cuentas (si hay fechas, forzamos TODAS)
+$seleccion     = isset($_GET['cuentas']) && is_array($_GET['cuentas']) ? $_GET['cuentas'] : [];
+$selIds        = array_values(array_unique(array_filter(array_map('intval', $seleccion), fn($x)=>$x>0)));
+if ($desdeOk && $hastaOk) {
+  // Mostrar TODAS las cuentas y dejarlas preseleccionadas en el filtro
+  $selIds = array_map(fn($c)=> (int)$c['id'], $cuentasCatalogo);
+}
 
-    <!-- Encabezado de empresa -->
-    <div class="mb-3">
-      <h4 class="fw-bold">RABINALARTS</h4>
-      <p>
-        <strong>Fecha:</strong> <?= date("Y-m-d") ?>
-        | <strong>Folio:</strong>
-        <?= isset($compra_info['id'])
-            ? str_pad($compra_info['id'], 5, "0", STR_PAD_LEFT)
-            : '----' ?>
-      </p>
-    </div>
+// Función: obtiene movimientos de libro_mayor por cuenta dentro del rango
+function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
+  $rows=[]; $totDebe=0.00; $totHaber=0.00;
+  $sql = "SELECT id, fecha, partida_id, debe, haber, origen
+            FROM libro_mayor
+           WHERE cuenta_id = ? AND fecha BETWEEN ? AND ?
+        ORDER BY fecha ASC, partida_id ASC, id ASC";
+  if ($st = $conn->prepare($sql)){
+    $st->bind_param("iss", $cuentaId, $desdeDT, $hastaDT);
+    $st->execute();
+    $r = $st->get_result();
+    while ($x = $r->fetch_assoc()){
+      $x['debe']  = (float)$x['debe'];
+      $x['haber'] = (float)$x['haber'];
+      $totDebe  += $x['debe'];
+      $totHaber += $x['haber'];
+      $rows[] = $x;
+    }
+    $st->close();
+  }
+  return [$rows,$totDebe,$totHaber];
+}
+?>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Libro Mayor</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Times New Roman', serif; font-size: 12px; background:#f6f7fb; }
+    .app-main { background:transparent; }
+    .lm-card { background:#fff; border:1px solid #d1d5db; border-radius:10px; margin-bottom:18px; }
+    .lm-header { text-align:center; padding:12px 8px 0 8px; }
+    .lm-header h2 { font-size:18px; margin:0; font-weight:700; letter-spacing:.5px; }
+    .lm-header h3 { font-size:14px; margin:2px 0 0; }
+    .lm-sub { font-size:11px; color:#6b7280; margin-top:2px; }
+    .table-ledger { width:100%; border-collapse:collapse; }
+    .table-ledger th, .table-ledger td { border:1px solid #000; padding:6px 8px; vertical-align:middle; background:#fff; }
+    .table-ledger thead th { background:#f1f5f9; text-align:center; font-weight:700; }
+    .table-ledger tfoot td { background:#e9ecef; font-weight:700; }
+    .num { text-align:right; font-variant-numeric: tabular-nums; }
+    .folio { background:#eaf3ff; border:1px solid #93c5fd; padding:6px 10px; border-radius:8px; font-weight:600; }
+    .ref-pill { font-size:11px; color:#6b7280; border:1px solid #d1d5db; padding:1px 6px; border-radius:999px; }
+    .toolbar .btn { border-radius:8px; }
+    .logo { position:absolute; top:12px; right:12px; height:52px; }
+    .desc-input { width:100%; border:0; background:transparent; outline:none; }
+    .desc-input::placeholder { color:#9ca3af; }
+    @media print {
+      .no-print { display:none !important; }
+      .lm-card { border:none; }
+      body { background:#fff; }
+      .desc-input { border:0; background:transparent; }
+    }
+  </style>
+</head>
+<body>
+<main class="app-main p-4">
 
-    <!-- Form para buscar una compra interna -->
-    <form method="GET" class="row g-3 mb-4">
-      <div class="col-md-3">
-        <label for="compra_id" class="form-label">ID Compra Interna</label>
-        <input
-          type="number"
-          name="compra_id"
-          id="compra_id"
-          class="form-control"
-          required
-        />
-      </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" class="btn btn-dark">Buscar Compra</button>
-      </div>
-    </form>
+  <img src="../../../dist/assets/img/rabi.png" class="logo" alt="Logo">
 
-    <?php if (!empty($compra_info)): ?>
-      <!-- Detalles de la compra interna en tabla -->
-      <div class="mb-4">
-        <h5>Detalles de la Compra</h5>
-        <table class="table table-bordered bg-light">
-          <thead class="table-secondary">
-            <tr>
-              <th>Campo</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>ID</td>
-              <td><?= $compra_info['id'] ?></td>
-            </tr>
-            <tr>
-              <td>Forma de Pago</td>
-              <td><?= htmlspecialchars($compra_info['forma_pago']) ?></td>
-            </tr>
-            <tr>
-              <td>Período</td>
-              <td><?= htmlspecialchars($compra_info['periodo_pago']) ?></td>
-            </tr>
-            <tr>
-              <td>Producto</td>
-              <td><?= htmlspecialchars($compra_info['nombre_producto']) ?></td>
-            </tr>
-            <tr>
-              <td>Cuenta Contable</td>
-              <td><?= htmlspecialchars($compra_info['numero_cuenta_contable']) ?></td>
-            </tr>
-            <tr>
-              <td>Valor IVA</td>
-              <td>Q<?= number_format($compra_info['valor_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Valor sin IVA</td>
-              <td>Q<?= number_format($compra_info['valor_sin_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total sin IVA</td>
-              <td>Q<?= number_format($compra_info['total_producto_sin_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total IVA</td>
-              <td>Q<?= number_format($compra_info['total_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total General</td>
-              <td>Q<?= number_format($compra_info['total_general'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Fecha de Registro</td>
-              <td><?= $compra_info['fecha_registro'] ?></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Botones de acción -->
-        <div class="d-flex gap-2">
-          <a
-            href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
-            target="_blank"
-            class="btn btn-outline-danger"
-          >
-            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-          </a>
-
-          <button
-            type="button"
-            id="btnPartidaContable"
-            class="btn btn-outline-danger"
-          >
-            <i class="bi bi-journal-text"></i> Generar Partida Contable
-          </button>
+  <div class="container-fluid">
+    <!-- Filtros -->
+    <div class="row g-3 align-items-end no-print mb-3">
+      <div class="col-12">
+        <form id="frmFiltro" class="row g-2">
+          <div class="col-sm-3">
+            <label class="form-label"><strong>Desde</strong></label>
+            <input type="date" name="desde" id="desde" class="form-control" value="<?= h($desdeOk) ?>">
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label"><strong>Hasta</strong></label>
+            <input type="date" name="hasta" id="hasta" class="form-control" value="<?= h($hastaOk) ?>">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label"><strong>Cuentas contables</strong> (múltiple)</label>
+            <select id="cuentas" name="cuentas[]" class="form-select" multiple
+                    data-placeholder="Selecciona una o más cuentas">
+              <?php foreach ($cuentasCatalogo as $c): ?>
+                <option value="<?= (int)$c['id'] ?>"
+                  <?= in_array($c['id'], $selIds, true) ? 'selected':'' ?>>
+                  <?= h($c['nombre']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label">Saldo inicial (opcional)</label>
+            <input type="number" name="saldo_inicial" id="saldo_inicial" step="0.01"
+                   class="form-control" value="<?= q($saldoInicial) ?>">
+          </div>
+          <div class="col-sm-9 d-flex align-items-end gap-2">
+            <button class="btn btn-primary">Ver</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnSelTodas">Seleccionar todas</button>
+            <button type="button" class="btn btn-outline-dark" onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </form>
+        <div class="form-text">
+          * Si eliges un rango de fechas, se mostrarán **todas** las cuentas automáticamente.
         </div>
       </div>
+    </div>
 
-      <script>
-        document
-          .getElementById('btnPartidaContable')
-          .addEventListener('click', function() {
-            const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
-            window.open(
-              'generar_Partida_contable_compras.php?compra_id=' + id,
-              'PartidaContablePopup',
-              'width=800,height=600,top=100,left=100,' +
-              'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
-            );
-          });
-      </script>
+    <!-- Encabezado general -->
+    <div class="lm-header mb-2">
+      <h2>RABINALARTS</h2>
+      <h3>LIBRO MAYOR</h3>
+      <div class="lm-sub">Cifras expresadas en Quetzales (Q)</div>
+      <?php if ($desdeOk || $hastaOk): ?>
+        <div class="lm-sub">Período: <?= h($desdeOk?:'—') ?> a <?= h($hastaOk?:'—') ?></div>
+      <?php endif; ?>
+    </div>
+
+    <?php if (empty($selIds)): ?>
+      <div class="alert alert-info">Selecciona un período o una o más cuentas para mostrar su Libro Mayor.</div>
+    <?php else: ?>
+      <?php foreach ($selIds as $cid):
+        // nombre de cuenta
+        $nombreCuenta = '';
+        if ($st = $conn->prepare("SELECT nombre FROM cuentas_contables WHERE id=?")){
+          $st->bind_param("i", $cid);
+          $st->execute();
+          $st->bind_result($nombreCuenta);
+          $st->fetch();
+          $st->close();
+        }
+        if ($nombreCuenta === '') {
+          echo '<div class="alert alert-warning">La cuenta #'.(int)$cid.' no existe.</div>';
+          continue;
+        }
+        // movimientos del rango
+        [$movs,$totDebe,$totHaber] = obtener_movimientos($conn, $cid, $desdeDT, $hastaDT);
+        $saldo = (float)$saldoInicial;
+      ?>
+      <div class="lm-card p-3">
+        <div class="d-flex justify-content-between align-items-center my-2 no-print">
+          <div><strong>Cuenta:</strong> <?= h($nombreCuenta) ?></div>
+          <div class="d-flex gap-2 align-items-center">
+            <div class="folio">FOLIO: <?= (int)$cid ?></div>
+            <form method="post" action="guardar_libro_mayor.php" class="d-inline">
+              <input type="hidden" name="cuenta_id" value="<?= (int)$cid ?>">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">🔄 Sincronizar cuenta</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table-ledger">
+            <thead>
+              <tr>
+                <th style="width:90px;">Fecha</th>
+                <th style="width:70px;">Ref.</th>
+                <th>Descripción</th>
+                <th class="num" style="width:120px;">Debe</th>
+                <th class="num" style="width:120px;">Haber</th>
+                <th class="num" style="width:120px;">Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php
+              // Saldo inicial (si aplica)
+              if ($saldoInicial != 0){
+                // Si se filtró por fecha, ponemos la fecha "desde" como referencia del saldo
+                $fechaSI = $desdeOk ? $desdeOk : date('Y-m-01');
+                echo '<tr>'.
+                     '<td>'.h(fecha_es_corta($fechaSI)).'</td>'.
+                     '<td><span class="ref-pill">—</span></td>'.
+                     '<td><input class="desc-input" value="Saldo inicial"></td>'.
+                     '<td class="num">—</td>'.
+                     '<td class="num">—</td>'.
+                     '<td class="num"><strong>'.q($saldo).'</strong></td>'.
+                     '</tr>';
+              }
+
+              if (empty($movs)){
+                echo '<tr><td colspan="6" class="text-center text-muted">No hay movimientos en el Libro Mayor para esta cuenta en el período seleccionado.</td></tr>';
+              } else {
+                foreach ($movs as $mv){
+                  // descripción editable sugerida
+                  switch ($mv['origen']){
+                    case 'compras':  $sugerido = 'Compras'; break;
+                    case 'ventas':   $sugerido = 'Ventas';  break;
+                    case 'planilla': $sugerido = 'Planilla';break;
+                    default:         $sugerido = 'Partida general';
+                  }
+                  $saldo = $saldo + $mv['debe'] - $mv['haber'];
+                  echo '<tr>'.
+                       '<td>'.h(fecha_es_corta($mv['fecha'])).'</td>'.
+                       '<td><span class="ref-pill">'.(int)$mv['partida_id'].'</span></td>'.
+                       '<td><input class="desc-input" placeholder="Escribe la descripción…" value="'.h($sugerido).'"></td>'.
+                       '<td class="num">'.($mv['debe']>0?q($mv['debe']):'').'</td>'.
+                       '<td class="num">'.($mv['haber']>0?q($mv['haber']):'').'</td>'.
+                       '<td class="num"><strong>'.q($saldo).'</strong></td>'.
+                       '</tr>';
+                }
+              }
+              ?>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">Totales</td>
+                <td class="num"><?= q($totDebe) ?></td>
+                <td class="num"><?= q($totHaber) ?></td>
+                <td class="num"><?= q($saldo) ?></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <?php endforeach; ?>
     <?php endif; ?>
   </div>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(function(){
+  // Select2
+  $('#cuentas').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: $('#cuentas').data('placeholder') || 'Selecciona una o más cuentas'
+  });
+
+  // Botón "Seleccionar todas"
+  $('#btnSelTodas').on('click', function(){
+    const allVals = Array.from(document.querySelectorAll('#cuentas option')).map(o=>o.value);
+    $('#cuentas').val(allVals).trigger('change');
+  });
+});
+</script>
+</body>
+</html>
+
 </main>
 
     <!--end::App Main-->
