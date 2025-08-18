@@ -18,6 +18,19 @@ $total = 0;
   <meta charset="utf-8">
   <title>RabinalArts</title>
   <link href="assets/css/style.css" rel="stylesheet">
+  <style>
+:root{
+  --color-primario:#5B3A1A; --color-secundario:#875728; --color-acento:#B07940; --color-fondo:#E0C8A8;
+}
+header{ background: var(--color-primario) !important; }
+header a{ color: var(--color-fondo) !important; }
+.button{ background: var(--color-primario) !important; }
+.button:hover{ background: var(--color-acento) !important; }
+.copyright-area{ background: var(--color-fondo) !important; }
+.container-productos .card{ background: var(--color-secundario) !important; border-color: var(--color-primario) !important; }
+.circulo{ border-color: var(--color-primario) !important; }
+</style>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>

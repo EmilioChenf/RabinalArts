@@ -8,7 +8,21 @@ session_start();
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RabinalArts</title>
+    <style>
+:root{
+  --color-primario:#5B3A1A; --color-secundario:#875728; --color-acento:#B07940; --color-fondo:#E0C8A8;
+}
+header{ background: var(--color-primario) !important; }
+header a{ color: var(--color-fondo) !important; }
+.button{ background: var(--color-primario) !important; }
+.button:hover{ background: var(--color-acento) !important; }
+.copyright-area{ background: var(--color-fondo) !important; }
+.container-productos .card{ background: var(--color-secundario) !important; border-color: var(--color-primario) !important; }
+.circulo{ border-color: var(--color-primario) !important; }
+</style>
     <link href="assets/css/style.css" rel="stylesheet" type="text/css">
+    <link href="/assets/css/style.css?v=2025-08-18-1" rel="stylesheet" type="text/css">
+
   </head>
   <body>
     <header>

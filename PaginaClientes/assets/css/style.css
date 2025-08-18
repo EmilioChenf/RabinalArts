@@ -1,3 +1,10 @@
+:root{
+  --color-primario:   #5B3A1A;
+  --color-secundario: #875728;
+  --color-acento:     #B07940;
+  --color-fondo:      #E0C8A8;
+}
+
 *{
     margin: 0;
     padding: 0;
@@ -16,7 +23,7 @@ img{
 }
 
 .button{
-    background:#DF691A;
+    background: var(--color-primario);
     text-decoration: none;
     padding: 15px;
     margin-top: 15px;
@@ -27,14 +34,14 @@ img{
 .button:hover{
     cursor: pointer;
     text-decoration: none;
-    background-color: #9a4912;
+    background-color: var(--color-acento);
     color: #f2f2f2;
 }
 
 
 /*menu*/
 header{
-    background:#333;
+    background: var(--color-primario);
     color:#f2f2f2;
     padding: 1rem 0;
     position: fixed;
@@ -44,7 +51,7 @@ header{
     height: 65px;
 }
 header a{
-    color: #cccccc;
+    color: var(--color-fondo);
     text-decoration: none;
 }
 .menu{
@@ -99,7 +106,7 @@ header a{
 }
 
 .navigation ul .user-info .logout {
-    color: red;
+    color: var(--color-acento);
     font-weight: bold;
     text-decoration: none;
 }
@@ -109,13 +116,13 @@ header a{
 }
 
 .icomin{
-    color: #cccccc;
+    color: var(--color-fondo);
 }
 .icomin:hover{
     color: #f2f2f2;
 }
 .bi-cart3{
-    color: #cccccc;
+    color: var(--color-fondo);
     cursor: pointer;
 }
 .bi-cart3:hover{
@@ -154,7 +161,7 @@ header a{
     display: block;
 }
 .button-vaciar{
-    background:#17A2B8;
+    background: var(--color-secundario);
     text-decoration: none;
     padding: 15px;
     margin-top: 15px;
@@ -165,11 +172,11 @@ header a{
 .button-vaciar:hover{
     cursor: pointer;
     text-decoration: none;
-    background-color: #0c505a;
+    background-color: var(--color-primario);
     color: #f2f2f2;
 }
 .button-pedido{
-    background:#28A745;
+    background: var(--color-acento);
     text-decoration: none;
     padding: 15px;
     margin-top: 15px;
@@ -180,7 +187,7 @@ header a{
 .button-pedido:hover{
     cursor: pointer;
     text-decoration: none;
-    background-color: #1e612e;
+    background-color: var(--color-secundario);
     color: #f2f2f2;
 }
 
@@ -244,7 +251,7 @@ main{
 .circulo{    
     width: 60%;
     border-radius: 50%;
-    border:2px solid  #DF691A;
+    border:2px solid var(--color-primario);
     box-shadow: 0 2px 2px rgba(0,0,0,0.2);
 }
 .ver-todo{
@@ -333,7 +340,7 @@ main{
     width: 50px;
     height: 50px;
     line-height: 50px;
-    background:#DF691A;
+    background: var(--color-primario);
     font-size: 2em;
     text-align: center;
     border-radius: 50%;
@@ -357,10 +364,10 @@ main{
 .container-productos .card{
     width: 260px;
     height: 390px;
-    background: #4E5D6C;
+    background: var(--color-secundario);
     color:#f2f2f2;
     border-radius: 8px;
-    border:1px solid  #DF691A;
+    border:1px solid var(--color-primario);
     box-shadow: 0 2px 2px rgba(0,0,0,0.2);
     overflow: hidden;
     margin: 20px;
@@ -449,7 +456,7 @@ main{
     box-sizing: border-box;
     font-size: 17px;
     border-radius: 8px;
-    border:1px solid  #DF691A;
+    border:1px solid var(--color-primario);
 }
 #total{
     border: 0; 
@@ -502,7 +509,7 @@ main{
     max-width: 1140px;
 }
 .copyright-area{
-  background: #202020;
+  background: var(--color-fondo);
   padding: 25px 0;
 }
 .copyright-text p {
@@ -511,7 +518,7 @@ main{
   color: #878787;
 }
 .copyright-text p a{
-  color: #ff5e14;
+  color: var(--color-acento);
   text-decoration: none;
 }
 .footer-menu li {
@@ -519,7 +526,7 @@ main{
   margin-left: 20px;
 }
 .footer-menu li:hover a{
-  color: #ff5e14;
+  color: var(--color-acento);
 }
 .footer-menu li a {
   font-size: 14px;
