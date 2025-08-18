@@ -47,6 +47,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_invoice'])) {
     exit;
 }
 
+$productos = [];
+$sqlProd = "SELECT id, nombre, cuenta_id, precios FROM gestion_productos_internos ORDER BY nombre";
+if ($res = $conn->query($sqlProd)) {
+  while ($row = $res->fetch_assoc()) {
+    $row['precios']   = (float)$row['precios'];
+    $row['cuenta_id'] = (int)$row['cuenta_id'];
+    $productos[] = $row;
+  }
+  $res->close();
+}
+
+
 // opciones de forma de pago
 $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
 ?>
@@ -325,14 +337,13 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
       </aside>
       <!--end::Sidebar-->
         <!--begin::App Main-->
-  <main class="app-main p-4">
+        
+<main class="app-main p-4">
   <div class="container">
-
-
-      <!-- Logo en la esquina superior -->
+    <!-- Logo en la esquina superior -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
+      <img src="../../../dist/assets/img/rabi.png"
+           alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
@@ -340,7 +351,7 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
 
     <?php if (isset($_GET['success'])): ?>
       <script>
-        Swal.fire({
+        Swal && Swal.fire({
           icon: 'success',
           title: '¡Compras registradas!',
           showConfirmButton: false,
@@ -358,20 +369,39 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
           <?php endforeach; ?>
         </select>
       </div>
+
       <div class="col-md-4">
         <label class="form-label">Periodo de compra</label>
         <input type="text" name="periodo_pago" id="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
       </div>
+
+      <!-- CAMBIO: nombre del producto -> SELECT poblado desde gestion_productos_internos -->
       <div class="col-md-6">
         <label class="form-label">Nombre del producto comprado</label>
-        <input type="text" name="nombre_producto" id="nombre_producto" class="form-control" required>
+        <select name="nombre_producto" id="nombre_producto" class="form-select" required>
+          <option value="" selected disabled>— Selecciona un producto —</option>
+          <?php if (empty($productos)): ?>
+            <option value="" disabled>Sin productos disponibles</option>
+          <?php else: ?>
+            <?php foreach ($productos as $p): ?>
+              <option
+                value="<?= htmlspecialchars($p['nombre']) ?>"
+                data-cuenta="<?= (int)$p['cuenta_id'] ?>"
+                data-precio="<?= number_format($p['precios'], 2, '.', '') ?>">
+                <?= htmlspecialchars($p['nombre']) ?>
+              </option>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </select>
+        <small class="text-muted">Se autocompletará la cuenta y el precio si están definidos.</small>
       </div>
+
       <div class="col-md-6">
         <label class="form-label">Número de cuenta contable</label>
         <input type="text" name="numero_cuenta_contable" id="numero_cuenta_contable" class="form-control" required>
       </div>
 
-      <!-- Aquí el precio del producto, ya incluye IVA -->
+      <!-- Precio (incluye IVA) -->
       <div class="col-md-4">
         <label class="form-label">Precio del producto (incluye IVA 12%)</label>
         <input type="number" step="0.01" name="precio_producto" id="precio_producto" class="form-control" required>
@@ -419,6 +449,38 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
     </form>
   </div>
 </main>
+
+<script>
+// Autocompleta cuenta y precio al elegir producto
+(function () {
+  const sel = document.getElementById('nombre_producto');
+  const cuenta = document.getElementById('numero_cuenta_contable');
+  const precio = document.getElementById('precio_producto');
+
+  function calcularIVA() {
+    const p = parseFloat(precio.value) || 0;
+    const sinIva = +(p / 1.12).toFixed(2);
+    const iva    = +(p - sinIva).toFixed(2);
+    document.getElementById('valor_sin_iva').value = sinIva.toFixed(2);
+    document.getElementById('valor_iva').value = iva.toFixed(2);
+    document.getElementById('total_sin_iva_general').value = sinIva.toFixed(2);
+    document.getElementById('total_general').value = p.toFixed(2);
+  }
+
+  if (sel) {
+    sel.addEventListener('change', function () {
+      const o = this.selectedOptions[0];
+      if (!o) return;
+      const cta = o.getAttribute('data-cuenta') || '';
+      const prc = o.getAttribute('data-precio') || '';
+      if (cta)  cuenta.value = cta;
+      if (prc) { precio.value = prc; calcularIVA(); }
+    });
+  }
+  if (precio) { precio.addEventListener('input', calcularIVA); }
+})();
+</script>
+
 
 <script>
 (function() {

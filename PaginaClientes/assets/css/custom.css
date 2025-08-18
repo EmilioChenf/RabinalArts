@@ -1,0 +1,54 @@
+/* 1) Colores base (podrías usar :root variables si quieres) */
+:root {
+  /* tu paleta marrón/beige */
+  --color-primario:   #5B3A1A;
+  --color-secundario: #875728;
+  --color-acento:     #B07940;
+  --color-fondo:      #E0C8A8;
+}
+
+/* 2) Sobrescribe header y footer */
+.app-header {
+  background-color: var(--color-primario) !important;
+}
+.app-footer {
+  background-color: var(--color-fondo) !important;
+}
+
+/* 3) Sobrescribe sidebar */
+.app-sidebar {
+  background-color: var(--color-secundario) !important;
+}
+
+/* 4) Botones primarios */
+.btn-primary {
+  background-color: var(--color-primario) !important;
+  border-color: var(--color-primario) !important;
+}
+.btn-primary:hover {
+  background-color: var(--color-acento) !important;
+  border-color: var(--color-acento) !important;
+}
+
+/* 5) Cabeceras de tarjetas/tablas */
+.card-header,
+.table thead th {
+  background-color: var(--color-secundario) !important;
+  color: white !important;
+}
+
+/* 6) Fondo general de contenido */
+.content-wrapper,
+.app-main {
+  background-color: #fffdf8; /* un claro cercano al beige */
+}
+
+/* 7) Tipografía o enlaces si quieres */
+a {
+  color: var(--color-primario);
+}
+a:hover {
+  color: var(--color-acento);
+}
+
+/* 8) Cualquier otra clase de AdminLTE que quieras “tunear” */

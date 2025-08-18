@@ -22,7 +22,6 @@ if (isset($_GET['planilla_id'])) {
 }
 ?>
 
-
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -308,14 +307,10 @@ if (isset($_GET['planilla_id'])) {
 
     <!-- Logo en la esquina superior -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
+      <img src="../../../dist/assets/img/rabi.png"
+           alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
-
-
-
-
 
     <h1 class="mb-4">Detalle / Comprobante de Planilla</h1>
 
@@ -341,6 +336,7 @@ if (isset($_GET['planilla_id'])) {
           id="planilla_id"
           class="form-control"
           required
+          value="<?= isset($_GET['planilla_id']) ? (int)$_GET['planilla_id'] : '' ?>"
         />
       </div>
       <div class="col-md-3 d-flex align-items-end">
@@ -370,8 +366,8 @@ if (isset($_GET['planilla_id'])) {
             <tr><td>Anticipo</td><td>Q<?= number_format($planilla_info['anticipo'], 2) ?></td></tr>
 
             <tr><td>Total ingresos</td><td>Q<?= number_format($planilla_info['total_ingresos'], 2) ?></td></tr>
-            <tr><td>ISSS</td><td>Q<?= number_format($planilla_info['isss'], 2) ?></td></tr>
-            <tr><td>ISR</td><td>Q<?= number_format($planilla_info['isr'], 2) ?></td></tr>
+            <tr><td>IGSS/ISSS (registro)</td><td>Q<?= number_format($planilla_info['isss'], 2) ?></td></tr>
+            <tr><td>ISR (registro)</td><td>Q<?= number_format($planilla_info['isr'], 2) ?></td></tr>
 
             <tr><td>Descuentos judiciales</td><td>Q<?= number_format($planilla_info['descuentos_judiciales'], 2) ?></td></tr>
             <tr><td>Otros descuentos</td><td>Q<?= number_format($planilla_info['otros_descuentos'], 2) ?></td></tr>
@@ -382,8 +378,29 @@ if (isset($_GET['planilla_id'])) {
           </tbody>
         </table>
 
+        <!-- Controles Partida Automática -->
+        <div class="row g-3 mb-2">
+          <div class="col-md-3">
+            <label class="form-label">Medio de pago</label>
+            <select id="medio_pago" class="form-select">
+              <option value="Bancos">Bancos</option>
+              <option value="Caja">Caja</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Descripción (opcional)</label>
+            <input id="desc_partida" class="form-control"
+                   placeholder="Ej. Planilla mensual (PID <?= (int)$planilla_info['id'] ?>)">
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <button type="button" id="btnPartidaAuto" class="btn btn-primary w-100">
+              ⚡ Generar Partida Automática
+            </button>
+          </div>
+        </div>
+
         <!-- Botones de acción -->
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 mb-2">
           <a
             href="exportar_planilla_pdf.php?id=<?= $planilla_info['id'] ?>"
             target="_blank"
@@ -397,12 +414,16 @@ if (isset($_GET['planilla_id'])) {
             id="btnPartidaContablePlanilla"
             class="btn btn-outline-danger"
           >
-            <i class="bi bi-journal-text"></i> Generar Partida Contable
+            <i class="bi bi-journal-text"></i> Generar Partida Manual
           </button>
         </div>
+
+        <div id="exportBtnContainer" class="mt-2"></div>
+
       </div>
 
       <script>
+        // Manual (tu pantalla antigua)
         document.getElementById('btnPartidaContablePlanilla')
           .addEventListener('click', function() {
             const id = <?= json_encode($planilla_info['id'], JSON_NUMERIC_CHECK) ?>;
@@ -413,11 +434,39 @@ if (isset($_GET['planilla_id'])) {
               'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
             );
           });
+
+        // Automática (nuevo)
+        document.getElementById('btnPartidaAuto')
+          .addEventListener('click', async function(){
+            const pid  = <?= json_encode($planilla_info['id'], JSON_NUMERIC_CHECK) ?>;
+            const medio= document.getElementById('medio_pago').value;
+            const desc = document.getElementById('desc_partida').value||'';
+
+            try{
+              const resp = await fetch('generar_partida_planilla_auto.php', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json' },
+                body: JSON.stringify({
+                  planilla_id: pid,
+                  medio_pago: medio,
+                  descripcion: desc
+                })
+              });
+              const data = await resp.json();
+              if (!data.success) throw new Error(data.message||'Error desconocido');
+
+              alert('Partida creada (#'+data.partida_id+').');
+              document.getElementById('exportBtnContainer').innerHTML =
+                `<a href="exportar_partida_planilla_pdf.php?partida_id=${data.partida_id}&planilla_id=${pid}"
+                   target="_blank" class="btn btn-danger">📄 Exportar Partida PDF (#${data.partida_id})</a>`;
+            }catch(e){
+              alert('No se pudo generar: '+ e.message);
+            }
+          });
       </script>
     <?php endif; ?>
   </div>
 </main>
-
     <!--end::App Main-->
       <!--begin::Footer-->
       <footer class="app-footer">

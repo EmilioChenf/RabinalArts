@@ -46,6 +46,9 @@ $imgAll = $rowAll['imagen'] ?? 'default.png';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>RabinalArts</title>
     <link href="assets/css/style.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="assets/css/custom.css">
+
+
     <style>
       /* Estilos para el buscador */
       .busqueda-container { position: relative; max-width: 400px; margin: 1rem auto; }

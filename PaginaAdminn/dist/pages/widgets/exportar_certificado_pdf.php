@@ -107,23 +107,40 @@ td.num { text-align:right; }
 .totales { margin-top:30px; font-style:italic; }
 .firma { margin-top:60px; text-align:right; }
 .footer { position:fixed; bottom:8px; left:10px; right:10px; font-size:12px; text-align:left; }
+
+ .hdr-wrap{
+  position: relative;
+  width: 100%;
+  text-align: center;     /* centra el bloque del título en toda la hoja */
+  margin: 0; padding: 0;
+}
+.hdr-title{
+  display: block;
+  text-align: center;     /* asegura centrado del texto */
+}
+.logo{
+  position: absolute;     /* logo fuera del flujo, no afecta el centrado */
+  top: 0;
+  right: 0;
+  width: 80px;            /* ajusta si quieres más grande/chico */
+  height: auto;
+}
+.divider{ border-bottom:1px solid #000; margin:4px 0 6px; }
 </style>
 </head>
 <body>
 
-<!-- Encabezado -->
-<table class="hdr">
-<tr>
-<td class="left">
-  <h1>CERTIFICADO DE PLANILLAS GENERADAS</h1>
-</td>
-<td class="right">
-<?php if (!empty($logo_base64)): ?>
-  <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
-<?php endif; ?>
-</td>
-</tr>
-</table>
+<!-- Encabezado centrado con logo fijo a la derecha -->
+<div class="hdr-wrap">
+  <div class="hdr-title">
+    <h1>CERTIFICADO DE PLANILLAS GENERADAS</h1>
+    <div><?= $empresa_nombre ?></div>
+  </div>
+
+  <?php if (!empty($logo_base64)): ?>
+    <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
+  <?php endif; ?>
+</div>
 <div class="divider"></div>
 
 <!-- Tabla -->

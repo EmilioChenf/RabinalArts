@@ -60,166 +60,180 @@ ob_start();
 <head>
   <meta charset="UTF-8">
   <title>Libro Diario <?= date('Y-m-d', strtotime($from)) ?>_a_<?= date('Y-m-d', strtotime($to)) ?></title>
-  <style>
-    @page { margin: 1cm; }
+<style>
+  /* A4 con márgenes moderados */
+  @page { size: A4 portrait; margin: 10mm; }
 
-    body {
-        font-family: 'Times New Roman', serif;
-        font-size: 12px;
-        margin: 0;
-        padding: 10px;
-    }
+  /* Base más compacta */
+  body {
+    font-family: "Times New Roman", serif;
+    font-size: 9.5pt;           /* antes ~12px, ahora 9.5pt */
+    line-height: 1.25;
+    margin: 0;
+    padding: 0;
+  }
 
-    /* Encabezado corporativo */
-    .hdr { width:100%; border-collapse:collapse; }
-    .hdr td { vertical-align:top; }
-    .hdr .left { text-align:center; padding:0 8px; }
-    .hdr .right { text-align:right; width:140px; }
-    .hdr h1 {
-      margin:0;
-      font-size:14px;             /* título 14 */
-      font-weight:bold;           /* negrita */
-      text-transform:uppercase;
-    }
-    .divider { border-bottom:2px solid #000; margin:6px 0 10px 0; }
-    .logo { width:110px; height:auto; }
+  /* Encabezado corporativo */
+  .hdr { width:100%; border-collapse:collapse; }
+  .hdr td { vertical-align:top; }
+  .hdr .left { text-align:center; padding:0 6px; }
+  .hdr .right { text-align:right; width:120px; }
+  .hdr h1 {
+    margin:0;
+    font-size:11pt;             /* más pequeño */
+    font-weight:bold;
+    text-transform:uppercase;
+  }
+  .divider { border-bottom:1px solid #000; margin:4px 0 6px 0; }
+  .logo { width:80px; height:auto; }   /* logo más chico */
 
-    /* Caja principal del libro tal como tenías */
-    .libro-diario {
-        border: 2px solid #000;
-        background: white;
-        margin-top: 10px;
-        width: 100%;
-    }
+  /* Caja principal */
+  .libro-diario {
+    border: 1px solid #000;     /* antes 2px */
+    background: #fff;
+    margin-top: 6px;
+    width: 100%;
+  }
 
-    .libro-header {
-        text-align: center;
-        padding: 15px;
-        border-bottom: 2px solid #000;
-        font-weight: bold;
-        background-color: #f8f9fa;
-    }
+  .libro-header {
+    text-align: center;
+    padding: 8px;               /* antes 15px */
+    border-bottom: 1px solid #000;
+    font-weight: bold;
+    background-color: #f6f7f8;
+  }
+  .libro-header div:nth-child(1){ font-size:11pt; }
+  .libro-header div:nth-child(2){ font-size:9.5pt; }
+  .libro-header div:nth-child(3){ font-size:8.5pt; }
 
-    .partida-row {
-        border-bottom: 1px solid #000;
-        min-height: 40px;
-        page-break-inside: avoid;
-        width: 100%;
-    }
+  /* Cada partida */
+  .partida-row {
+    border-bottom: 1px solid #000;
+    page-break-inside: avoid;   /* mantiene la partida en una página */
+    width: 100%;
+  }
 
-    .partida-table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
+  .partida-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;        /* columnas estables en A4 */
+  }
 
-    .partida-number-cell {
-        border-right: 2px solid #000;
-        width: 60px;
-        text-align: center;
-        font-weight: bold;
-        background-color: #f8f9fa;
-        vertical-align: top;
-        padding: 8px 5px;
-    }
+  /* Columnas en porcentajes que SIEMPRE caben en A4 */
+  .partida-number-cell {        /* No. de partida */
+    width: 8%;
+    text-align: center;
+    font-weight: bold;
+    background-color: #f6f7f8;
+    vertical-align: top;
+    padding: 6px 4px;
+    border-right: 1px solid #000;
+  }
+  .partida-content-cell {       /* Cuentas / descripción */
+    width: 56%;
+    padding: 6px 8px;
+    vertical-align: top;
+    word-break: break-word;     /* evita desbordes */
+  }
+  .amounts-debe-cell,
+  .amounts-haber-cell {         /* Importes */
+    width: 18%;
+    border-left: 1px solid #000;
+    padding: 6px 4px;
+    text-align: right; 
+    vertical-align: top;
+    font-variant-numeric: tabular-nums;
+  }
 
-    .partida-content-cell {
-        padding: 8px 10px;
-        vertical-align: top;
-        width: 300px;
-    }
+  .partida-fecha-header {
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 4px;
+    font-size: 9.5pt;
+  }
 
-    .amounts-debe-cell {
-        width: 120px;
-        border-left: 1px solid #000;
-        padding: 8px 5px;
-        text-align: right; /* números a la derecha */
-        vertical-align: top;
-    }
+  .cuenta-row { margin: 1px 0; }
+  .cuenta-numero {
+    display: inline-block;
+    width: 16px;                /* más angosto */
+    text-align: center;
+    font-weight: bold;
+    margin-right: 6px;
+  }
+  .cuenta-nombre {
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 0.2px;
+  }
+  .cuenta-descripcion {
+    margin: 6px 0 0 16px;
+    font-size: 8.7pt;
+    font-style: italic;
+    color: #222;
+    line-height: 1.25;
+    font-weight: bold;
+  }
 
-    .amounts-haber-cell {
-        width: 120px;
-        border-left: 1px solid #000;
-        padding: 8px 5px;
-        text-align: right; /* números a la derecha */
-        vertical-align: top;
-    }
+  .amount-row { min-height: 14px; }
 
-    .partida-fecha-header {
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 8px;
-        font-size: 12px;
-    }
+  .final-totals {
+    border: 1px solid #000;
+    background-color: #eceff1;
+    text-align: right;
+    font-weight: bold;
+    font-size: 9.5pt;
+    padding: 3px 4px;
+    margin-top: 4px;
+  }
 
-    .cuenta-row { margin: 2px 0; }
+  .empty-row { height: 12px; }
 
-    .cuenta-numero {
-        display: inline-block;
-        width: 20px;
-        text-align: center;
-        font-weight: bold;
-        margin-right: 10px;
-    }
+  /* Pie */
+  .footer {
+    position: fixed;
+    bottom: 6mm; left: 10mm; right: 10mm;
+    font-size: 9pt;
+    text-align: left;
+  }
 
-    .cuenta-nombre {
-        text-transform: uppercase;
-        font-weight: bold;
-    }
 
-    .cuenta-descripcion {
-        margin: 8px 0 0 20px;
-        font-size: 11px;
-        font-style: italic;
-        color: #333;
-        line-height: 1.3;
-        font-weight: bold;
-    }
+  .hdr-wrap{
+  position: relative;
+  width: 100%;
+  text-align: center;     /* centra el bloque del título en toda la hoja */
+  margin: 0; padding: 0;
+}
+.hdr-title{
+  display: block;
+  text-align: center;     /* asegura centrado del texto */
+}
+.logo{
+  position: absolute;     /* logo fuera del flujo, no afecta el centrado */
+  top: 0;
+  right: 0;
+  width: 80px;            /* ajusta si quieres más grande/chico */
+  height: auto;
+}
+.divider{ border-bottom:1px solid #000; margin:4px 0 6px; }
 
-    .amount-row {
-        margin: 2px 0;
-        min-height: 18px;
-        text-align: right;
-    }
+</style>
 
-    .final-totals {
-        border: 1px solid #000;
-        background-color: #e9ecef;
-        text-align: right;
-        font-weight: bold;
-        font-size: 12px;
-        padding: 5px;
-        margin-top: 5px;
-    }
-
-    .empty-row { height: 20px; }
-
-    /* Pie de página unificado */
-    .footer {
-      position: fixed;
-      bottom: 8px; left: 10px; right: 10px;
-      font-size: 12px;
-      text-align: left;
-    }
-  </style>
 </head>
 <body>
 
-<!-- Encabezado unificado -->
-<table class="hdr">
-  <tr>
-    <td class="left">
-      <h1>LIBRO DIARIO</h1>
-      <div><?= $empresa_nombre ?></div>
-    </td>
-    <td class="right">
-      <?php if (!empty($logo_base64)): ?>
-        <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
-      <?php endif; ?>
-    </td>
-  </tr>
-</table>
+<!-- Encabezado centrado con logo fijo a la derecha -->
+<div class="hdr-wrap">
+  <div class="hdr-title">
+    <h1>LIBRO DIARIO</h1>
+    <div><?= $empresa_nombre ?></div>
+  </div>
+
+  <?php if (!empty($logo_base64)): ?>
+    <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
+  <?php endif; ?>
+</div>
 <div class="divider"></div>
+
 
 <div class="libro-diario">
   <!-- Header del libro (tu bloque original informativo) -->

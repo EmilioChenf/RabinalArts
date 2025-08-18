@@ -3,47 +3,61 @@
 session_start();
 include 'conexion.php';
 
-// Inicializar detalle si no existe
-if (!isset($_SESSION['factura_detalle'])) {
-    $_SESSION['factura_detalle'] = [];
-}
-
-$mensaje = "";
-
-// Agregar producto
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['agregar'])) {
-    $producto_id = $_POST['producto_id'];
-    $cantidad = $_POST['cantidad'];
-    $sql = $conn->query("SELECT nombre, precio FROM productos WHERE id = $producto_id");
-    if ($row = $sql->fetch_assoc()) {
-        $_SESSION['factura_detalle'][] = [
-            'producto_id' => $producto_id,
-            'nombre' => $row['nombre'],
-            'cantidad' => $cantidad,
-            'precio' => $row['precio'],
-            'subtotal' => $row['precio'] * $cantidad
-        ];
-    }
-}
-
-// Buscar cliente por ID
 $cliente_info = [];
-if (isset($_GET['cliente_id'])) {
-    $cid = (int) $_GET['cliente_id'];
-    $sql = $conn->query("SELECT * FROM usuarios WHERE id = $cid");
-    $cliente_info = $sql->fetch_assoc();
+$ventas = [];
+$venta_detalle = [];
+$venta_seleccionada = 0;
 
-    // Obtener ultima venta
-    $venta = $conn->query("SELECT * FROM ventas WHERE cliente_id = $cid ORDER BY id DESC LIMIT 1")->fetch_assoc();
-    $venta_id = $venta['id'] ?? 0;
-    if ($venta_id) {
-        $detalles = $conn->query("SELECT d.*, p.nombre FROM detalle_venta d JOIN productos p ON d.producto_id = p.id WHERE d.venta_id = $venta_id");
+// 1) Buscar cliente
+if (isset($_GET['cliente_id'])) {
+  $cliente_id = (int)$_GET['cliente_id'];
+  if ($cliente_id > 0) {
+    // Datos del cliente
+    $stmt = $conn->prepare("SELECT id, nombre, correo, telefono, direccion FROM usuarios WHERE id = ?");
+    $stmt->bind_param("i", $cliente_id);
+    $stmt->execute();
+    $cliente_info = $stmt->get_result()->fetch_assoc() ?: [];
+    $stmt->close();
+
+    if ($cliente_info) {
+      // 2) Ventas del cliente + total (IVA incluido) desde detalle_venta
+      $sqlVentas = "
+        SELECT v.id, v.fecha,
+               COALESCE(SUM(dv.total),0) AS total_con_iva
+          FROM ventas v
+          LEFT JOIN detalle_venta dv ON dv.venta_id = v.id
+         WHERE v.cliente_id = ?
+         GROUP BY v.id, v.fecha
+         ORDER BY v.fecha DESC, v.id DESC
+      ";
+      $stmt = $conn->prepare($sqlVentas);
+      $stmt->bind_param("i", $cliente_id);
+      $stmt->execute();
+      $ventas = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+      $stmt->close();
+
+      // 3) Venta seleccionada (por GET) o la más reciente
+      if (!empty($ventas)) {
+        $venta_seleccionada = isset($_GET['venta_id']) ? (int)$_GET['venta_id'] : (int)$ventas[0]['id'];
+
+        // Detalle de la venta seleccionada
+        $sqlDet = "
+          SELECT dv.producto_id, p.nombre, dv.cantidad, dv.precio_unitario, dv.total
+            FROM detalle_venta dv
+            JOIN productos p ON p.id = dv.producto_id
+           WHERE dv.venta_id = ?
+           ORDER BY dv.id ASC
+        ";
+        $stmt = $conn->prepare($sqlDet);
+        $stmt->bind_param("i", $venta_seleccionada);
+        $stmt->execute();
+        $venta_detalle = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+      }
     }
+  }
 }
 ?>
-
-
-
 
 <!doctype html>
 <html lang="en">
@@ -327,15 +341,14 @@ if (isset($_GET['cliente_id'])) {
 <main class="app-main p-4">
   <div class="container">
 
-
-      <!-- Logo en la esquina superior -->
+    <!-- Logo -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
+      <img src="../../../dist/assets/img/rabi.png"
+           alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
-    <h1 class="mb-4">Generar Factura</h1>
+    <h1 class="mb-4">Ventas — Factura y Partida automática</h1>
 
     <!-- Encabezado Empresa -->
     <div class="mb-3">
@@ -347,199 +360,167 @@ if (isset($_GET['cliente_id'])) {
     <form method="GET" class="row g-3 mb-4">
       <div class="col-md-3">
         <label for="cliente_id" class="form-label">ID Cliente</label>
-        <input type="number" name="cliente_id" id="cliente_id" class="form-control" required>
+        <input type="number" name="cliente_id" id="cliente_id" class="form-control" required
+               value="<?= isset($_GET['cliente_id']) ? (int)$_GET['cliente_id'] : '' ?>">
       </div>
       <div class="col-md-3 d-flex align-items-end">
         <button type="submit" class="btn btn-dark">Buscar Cliente</button>
       </div>
     </form>
 
-    <!-- Mostrar datos cliente en tabla -->
-    <?php if (!empty($cliente_info)): ?>
+    <?php if ($cliente_info): ?>
+      <!-- Datos del cliente -->
       <div class="mb-4">
         <h5>Datos del Cliente</h5>
         <table class="table table-bordered bg-light">
           <thead class="table-secondary">
-            <tr>
-              <th>Campo</th>
-              <th>Valor</th>
-            </tr>
+            <tr><th>Campo</th><th>Valor</th></tr>
           </thead>
           <tbody>
-            <tr>
-              <td>ID</td>
-              <td><?= $cliente_info['id'] ?></td>
-            </tr>
-            <tr>
-              <td>Nombre</td>
-              <td><?= htmlspecialchars($cliente_info['nombre']) ?></td>
-            </tr>
-            <tr>
-              <td>Correo</td>
-              <td><?= htmlspecialchars($cliente_info['correo']) ?></td>
-            </tr>
-            <tr>
-              <td>Teléfono</td>
-              <td><?= htmlspecialchars($cliente_info['telefono']) ?></td>
-            </tr>
-            <tr>
-              <td>Dirección</td>
-              <td><?= htmlspecialchars($cliente_info['direccion']) ?></td>
-            </tr>
+            <tr><td>ID</td><td><?= $cliente_info['id'] ?></td></tr>
+            <tr><td>Nombre</td><td><?= htmlspecialchars($cliente_info['nombre']) ?></td></tr>
+            <tr><td>Correo</td><td><?= htmlspecialchars($cliente_info['correo']) ?></td></tr>
+            <tr><td>Teléfono</td><td><?= htmlspecialchars($cliente_info['telefono']) ?></td></tr>
+            <tr><td>Dirección</td><td><?= htmlspecialchars($cliente_info['direccion']) ?></td></tr>
           </tbody>
         </table>
+      </div>
 
-        <!-- Botones que solo aparecen después de buscar cliente -->
-        <div class="d-flex gap-2">
-          <a href="exportar_factura_pdf.php?cliente_id=<?= $cliente_info['id'] ?>"
-             class="btn btn-outline-danger"
-             target="_blank">
-            Exportar como PDF
-          </a>
-          <button
-            type="button"
-            id="btnPartidaContable"
-            class="btn btn-outline-danger"
-          >
-            Generar Partida contable
-          </button>
+      <!-- Ventas del cliente -->
+      <div class="card mb-4">
+        <div class="card-header">Ventas del cliente</div>
+        <div class="card-body">
+          <?php if (empty($ventas)): ?>
+            <div class="text-muted">Este cliente no tiene ventas registradas.</div>
+          <?php else: ?>
+            <form method="GET" class="row g-3 mb-3">
+              <input type="hidden" name="cliente_id" value="<?= (int)$cliente_info['id'] ?>">
+              <div class="col-md-6">
+                <label class="form-label">Selecciona una venta</label>
+                <select name="venta_id" class="form-select" onchange="this.form.submit()">
+                  <?php foreach ($ventas as $v):
+                    $sel = ((int)$v['id'] === $venta_seleccionada) ? 'selected' : '';
+                    $tot_iva = (float)$v['total_con_iva'];
+                  ?>
+                    <option value="<?= (int)$v['id'] ?>" <?= $sel ?>>
+                      Venta #<?= (int)$v['id'] ?> — <?= date('Y-m-d', strtotime($v['fecha'])) ?> — Total (IVA incl.) Q<?= number_format($tot_iva,2) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <a class="btn btn-outline-danger"
+                   target="_blank"
+                   href="exportar_factura_pdf.php?cliente_id=<?= (int)$cliente_info['id'] ?>&venta_id=<?= (int)$venta_seleccionada ?>">
+                  Exportar factura PDF
+                </a>
+              </div>
+            </form>
+
+            <!-- Detalle de la venta seleccionada -->
+            <h6 class="mb-2">Detalle de la venta #<?= (int)$venta_seleccionada ?></h6>
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio Unitario (Q, IVA incl.)</th>
+                  <th>Importe (Q, IVA incl.)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php
+                  $total_con_iva_sel = 0.0;
+                  foreach ($venta_detalle as $it):
+                    $total_con_iva_sel += (float)$it['total'];
+                ?>
+                  <tr>
+                    <td><?= htmlspecialchars($it['nombre']) ?></td>
+                    <td><?= (int)$it['cantidad'] ?></td>
+                    <td>Q<?= number_format((float)$it['precio_unitario'], 2) ?></td>
+                    <td>Q<?= number_format((float)$it['total'], 2) ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+              <?php
+                // IVA incluido: base = total/1.12, IVA = total - base
+                $base_sel = round($total_con_iva_sel / 1.12, 2);
+                $iva_sel  = round($total_con_iva_sel - $base_sel, 2);
+              ?>
+              <tfoot>
+                <tr><th colspan="3" class="text-end">Base (sin IVA):</th><th>Q<?= number_format($base_sel, 2) ?></th></tr>
+                <tr><th colspan="3" class="text-end">IVA (12%):</th><th>Q<?= number_format($iva_sel, 2) ?></th></tr>
+                <tr><th colspan="3" class="text-end">Total (IVA incl.):</th><th>Q<?= number_format($total_con_iva_sel, 2) ?></th></tr>
+              </tfoot>
+            </table>
+
+            <!-- Controles partida automática -->
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label">Forma de cobro</label>
+                <select id="forma_cobro" class="form-select">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Descripción (opcional)</label>
+                <input id="desc_partida" class="form-control"
+                       placeholder="Ej. Venta mostrador (VID <?= (int)$venta_seleccionada ?>)">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <button type="button" id="btnAutoPartidaVenta" class="btn btn-primary w-100">
+                  ⚡ Generar Partida Automática
+                </button>
+              </div>
+            </div>
+
+            <div id="exportVentaBtnContainer" class="mt-3"></div>
+          <?php endif; ?>
         </div>
       </div>
     <?php endif; ?>
 
-    <!-- Última factura del cliente -->
-    <?php if (!empty($detalles)): ?>
-      <div class="mb-4">
-        <h5>Última Factura Registrada</h5>
-        <table class="table table-bordered">
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Cantidad</th>
-              <th>Precio Unitario ($)</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-          <?php
-          $total_ultima = 0;
-          $rows = [];
-          while ($row = $detalles->fetch_assoc()) {
-              $rows[] = $row;
-              $total_ultima += $row['total'];
-          }
-          $iva_ultima = $total_ultima * 0.12;
-          $total_con_iva_ultima = $total_ultima + $iva_ultima;
-          ?>
-
-          <?php foreach ($rows as $row): ?>
-          <tr>
-            <td><?= htmlspecialchars($row['nombre']) ?></td>
-            <td><?= $row['cantidad'] ?></td>
-            <td>$<?= number_format($row['precio_unitario'], 2) ?></td>
-            <td>$<?= number_format($row['total'], 2) ?></td>
-          </tr>
-          <?php endforeach; ?>
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="3" class="text-end">Subtotal:</th>
-              <th>$<?= number_format($total_ultima, 2) ?></th>
-            </tr>
-            <tr>
-              <th colspan="3" class="text-end">IVA (12%):</th>
-              <th>$<?= number_format($iva_ultima, 2) ?></th>
-            </tr>
-            <tr>
-              <th colspan="3" class="text-end">Total con IVA:</th>
-              <th>$<?= number_format($total_con_iva_ultima, 2) ?></th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    <?php endif; ?>
-
-    <!-- Detalle de factura actual -->
-    <?php if (!empty($_SESSION['factura_detalle'])): ?>
-      <h4>Detalle de la factura actual</h4>
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php 
-          $total = 0;
-          foreach ($_SESSION['factura_detalle'] as $item): 
-            $total += $item['subtotal'];
-        ?>
-          <tr>
-            <td><?= htmlspecialchars($item['nombre']) ?></td>
-            <td><?= $item['cantidad'] ?></td>
-            <td>Q<?= number_format($item['precio'], 2) ?></td>
-            <td>Q<?= number_format($item['subtotal'], 2) ?></td>
-          </tr>
-        <?php endforeach; ?>
-
-        <?php
-          $iva = $total * 0.12;
-          $total_final = $total + $iva;
-        ?>
-        </tbody>
-        <tfoot>
-          <tr>
-            <th colspan="3" class="text-end">Subtotal:</th>
-            <th>Q<?= number_format($total, 2) ?></th>
-          </tr>
-          <tr>
-            <th colspan="3" class="text-end">IVA (12%):</th>
-            <th>Q<?= number_format($iva, 2) ?></th>
-          </tr>
-          <tr>
-            <th colspan="3" class="text-end">Total con IVA:</th>
-            <th>Q<?= number_format($total_final, 2) ?></th>
-          </tr>
-        </tfoot>
-      </table>
-
-      <form method="POST" action="guardar_factura.php">
-        <div class="text-end">
-          <button type="submit" class="btn btn-success">Confirmar y Ver Factura</button>
-        </div>
-      </form>
-    <?php endif; ?>
   </div>
 
   <script>
-    document.getElementById('btnPartidaContable')?.addEventListener('click', function() {
-      const clienteId = <?= json_encode($cliente_info['id'] ?? '', JSON_NUMERIC_CHECK) ?>;
-      if (!clienteId) return;
-      const url = `generar_Partida_contable.php?cliente_id=${clienteId}`;
-      window.open(
-        url,
-        'PartidaContablePopup',
-        'width=800,'  +
-        'height=600,' +
-        'top=100,'    +
-        'left=100,'   +
-        'menubar=no,' +
-        'toolbar=no,' +
-        'location=no,'+
-        'status=no,'  +
-        'scrollbars=yes,'+
-        'resizable=yes'
-      );
+    document.getElementById('btnAutoPartidaVenta')?.addEventListener('click', async function () {
+      const clienteId = <?= json_encode($cliente_info['id'] ?? 0, JSON_NUMERIC_CHECK) ?>;
+      const ventaId   = <?= json_encode($venta_seleccionada, JSON_NUMERIC_CHECK) ?>;
+      if (!clienteId || !ventaId) {
+        alert('Selecciona un cliente y una venta.');
+        return;
+      }
+      const forma = document.getElementById('forma_cobro')?.value || '';
+      const desc  = document.getElementById('desc_partida')?.value || '';
+
+      try {
+        const resp = await fetch('generar_partida_venta_auto.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            venta_id:    ventaId,
+            forma_cobro: forma,
+            descripcion: desc
+          })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || 'Error desconocido');
+
+        alert('Partida creada (#' + data.partida_id + ').');
+        const ctn = document.getElementById('exportVentaBtnContainer');
+        if (ctn) {
+          ctn.innerHTML =
+            `<a href="exportar_partida_pdf.php?partida_id=${data.partida_id}&cliente_id=${clienteId}"
+               target="_blank" class="btn btn-danger">📄 Exportar PDF (partida #${data.partida_id})</a>`;
+        }
+      } catch (e) {
+        alert('No se pudo generar: ' + e.message);
+      }
     });
   </script>
 </main>
-
-
-
-     
     
     <!--end::App Main-->
       <!--begin::Footer-->

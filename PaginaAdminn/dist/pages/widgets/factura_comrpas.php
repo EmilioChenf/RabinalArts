@@ -12,6 +12,10 @@ if (isset($_GET['compra_id'])) {
     $compra_info = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 }
+
+
+
+
 ?>
 
 
@@ -300,11 +304,10 @@ if (isset($_GET['compra_id'])) {
 <main class="app-main p-4">
   <div class="container">
 
-
-      <!-- Logo en la esquina superior -->
+    <!-- Logo -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
+      <img src="../../../dist/assets/img/rabi.png"
+           alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
@@ -322,17 +325,11 @@ if (isset($_GET['compra_id'])) {
       </p>
     </div>
 
-    <!-- Form para buscar una compra interna -->
+    <!-- Buscar compra -->
     <form method="GET" class="row g-3 mb-4">
       <div class="col-md-3">
         <label for="compra_id" class="form-label">ID Compra Interna</label>
-        <input
-          type="number"
-          name="compra_id"
-          id="compra_id"
-          class="form-control"
-          required
-        />
+        <input type="number" name="compra_id" id="compra_id" class="form-control" required />
       </div>
       <div class="col-md-3 d-flex align-items-end">
         <button type="submit" class="btn btn-dark">Buscar Compra</button>
@@ -340,65 +337,28 @@ if (isset($_GET['compra_id'])) {
     </form>
 
     <?php if (!empty($compra_info)): ?>
-      <!-- Detalles de la compra interna en tabla -->
       <div class="mb-4">
         <h5>Detalles de la Compra</h5>
         <table class="table table-bordered bg-light">
           <thead class="table-secondary">
-            <tr>
-              <th>Campo</th>
-              <th>Valor</th>
-            </tr>
+            <tr><th>Campo</th><th>Valor</th></tr>
           </thead>
           <tbody>
-            <tr>
-              <td>ID</td>
-              <td><?= $compra_info['id'] ?></td>
-            </tr>
-            <tr>
-              <td>Forma de Pago</td>
-              <td><?= htmlspecialchars($compra_info['forma_pago']) ?></td>
-            </tr>
-            <tr>
-              <td>Período</td>
-              <td><?= htmlspecialchars($compra_info['periodo_pago']) ?></td>
-            </tr>
-            <tr>
-              <td>Producto</td>
-              <td><?= htmlspecialchars($compra_info['nombre_producto']) ?></td>
-            </tr>
-            <tr>
-              <td>Cuenta Contable</td>
-              <td><?= htmlspecialchars($compra_info['numero_cuenta_contable']) ?></td>
-            </tr>
-            <tr>
-              <td>Valor IVA</td>
-              <td>Q<?= number_format($compra_info['valor_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Valor sin IVA</td>
-              <td>Q<?= number_format($compra_info['valor_sin_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total sin IVA</td>
-              <td>Q<?= number_format($compra_info['total_producto_sin_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total IVA</td>
-              <td>Q<?= number_format($compra_info['total_iva'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Total General</td>
-              <td>Q<?= number_format($compra_info['total_general'], 2) ?></td>
-            </tr>
-            <tr>
-              <td>Fecha de Registro</td>
-              <td><?= $compra_info['fecha_registro'] ?></td>
-            </tr>
+            <tr><td>ID</td><td><?= $compra_info['id'] ?></td></tr>
+            <tr><td>Forma de Pago</td><td><?= htmlspecialchars($compra_info['forma_pago']) ?></td></tr>
+            <tr><td>Período</td><td><?= htmlspecialchars($compra_info['periodo_pago']) ?></td></tr>
+            <tr><td>Producto</td><td><?= htmlspecialchars($compra_info['nombre_producto']) ?></td></tr>
+            <tr><td>Cuenta Contable</td><td><?= htmlspecialchars($compra_info['numero_cuenta_contable']) ?></td></tr>
+            <tr><td>Valor IVA</td><td>Q<?= number_format($compra_info['valor_iva'], 2) ?></td></tr>
+            <tr><td>Valor sin IVA</td><td>Q<?= number_format($compra_info['valor_sin_iva'], 2) ?></td></tr>
+            <tr><td>Total sin IVA</td><td>Q<?= number_format($compra_info['total_producto_sin_iva'], 2) ?></td></tr>
+            <tr><td>Total IVA</td><td>Q<?= number_format($compra_info['total_iva'], 2) ?></td></tr>
+            <tr><td>Total General</td><td>Q<?= number_format($compra_info['total_general'], 2) ?></td></tr>
+            <tr><td>Fecha de Registro</td><td><?= $compra_info['fecha_registro'] ?></td></tr>
           </tbody>
         </table>
 
-        <!-- Botones de acción -->
+        <!-- Acciones -->
         <div class="d-flex gap-2">
           <a
             href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
@@ -408,32 +368,70 @@ if (isset($_GET['compra_id'])) {
             <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
           </a>
 
-          <button
-            type="button"
-            id="btnPartidaContable"
-            class="btn btn-outline-danger"
-          >
-            <i class="bi bi-journal-text"></i> Generar Partida Contable
+          <!-- Generación automática -->
+          <button type="button" id="btnAutoPartida" class="btn btn-success">
+            <i class="bi bi-lightning-charge"></i> Generar Partida Automática
+          </button>
+
+          <!-- Editor manual -->
+          <button type="button" id="btnPartidaContable" class="btn btn-outline-primary">
+            <i class="bi bi-journal-text"></i> Abrir Editor Manual
           </button>
         </div>
+
+        <!-- Contenedor para botón de export tras generar partida -->
+        <div id="exportBtnContainer" class="mt-2"></div>
       </div>
 
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
       <script>
-        document
-          .getElementById('btnPartidaContable')
-          .addEventListener('click', function() {
-            const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
-            window.open(
-              'generar_Partida_contable_compras.php?compra_id=' + id,
-              'PartidaContablePopup',
-              'width=800,height=600,top=100,left=100,' +
-              'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
-            );
-          });
+        // Editor manual (flujo anterior)
+        document.getElementById('btnPartidaContable').addEventListener('click', function() {
+          const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
+          window.open(
+            'generar_Partida_contable_compras.php?compra_id=' + id,
+            'PartidaContablePopup',
+            'width=900,height=650,top=100,left=100,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
+          );
+        });
+
+        // Automático (endpoint correcto + JSON)
+        document.getElementById('btnAutoPartida').addEventListener('click', async function() {
+          const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
+          try {
+            const resp = await fetch('generar_partida_compras_auto.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                compra_id: id,
+                descripcion: 'Partida automática de compra interna'
+              })
+            });
+
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.message || 'Error desconocido');
+
+            Swal.fire({icon:'success', title:'Partida creada', timer:1400, showConfirmButton:false});
+
+            // habilita export con partida_id
+            const link = `
+              <a href="exportar_compra_interna_pdf.php?partida_id=${data.partida_id}&compra_id=${id}"
+                 target="_blank" class="btn btn-danger mt-2">
+                 📄 Exportar PDF (partida #${data.partida_id})
+              </a>`;
+            document.getElementById('exportBtnContainer').innerHTML = link;
+
+          } catch (e) {
+            Swal.fire({icon:'error', title:'No se pudo generar', text: e.message});
+          }
+        });
       </script>
     <?php endif; ?>
   </div>
 </main>
+
+
+
 
     <!--end::App Main-->
       <!--begin::Footer-->

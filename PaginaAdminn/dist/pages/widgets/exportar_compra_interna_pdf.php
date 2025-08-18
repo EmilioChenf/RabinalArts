@@ -95,6 +95,27 @@ body { font-family: 'Times New Roman', serif; font-size: 12px; margin: 0; paddin
 .descripcion-totales { font-style:italic; color:#333; font-weight:bold; }
 
 .footer { position:fixed; bottom:8px; left:10px; right:10px; font-size:12px; text-align:left; }
+
+ .hdr-wrap{
+  position: relative;
+  width: 100%;
+  text-align: center;     /* centra el bloque del título en toda la hoja */
+  margin: 0; padding: 0;
+}
+.hdr-title{
+  display: block;
+  text-align: center;     /* asegura centrado del texto */
+}
+.logo{
+  position: absolute;     /* logo fuera del flujo, no afecta el centrado */
+  top: 0;
+  right: 0;
+  width: 80px;            /* ajusta si quieres más grande/chico */
+  height: auto;
+}
+.divider{ border-bottom:1px solid #000; margin:4px 0 6px; }
+
+
 </style>
 </head>
 <body>
