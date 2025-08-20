@@ -1,8 +1,9 @@
 <?php
 // exportar_certificado_pdf.php
+// (Certificado de Planillas con formato de "Planilla Mensual - Listado Completo")
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
-include 'conexion.php';
+require_once 'conexion.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -12,7 +13,8 @@ $logo_base64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQw
 // =========================
 
 
-// ======== Funciones originales ========
+
+// =================== Utilidad: números a texto ===================
 function convertirMenorDeMil(int $n): string {
     $unidad = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
     $decena = ['', 'diez', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
@@ -68,47 +70,180 @@ function numeroEnLetras(float $numero): string {
     return ucfirst($textoEntero).' quetzales con '.$textoDecimales.'.';
 }
 
-// ====== Consulta original ======
-$sql = "SELECT id, nombre, puesto, fecha_registro, liquido_recibir 
-        FROM planilla ORDER BY fecha_registro ASC";
-$res = mysqli_query($conn, $sql);
-if (!$res) die("Error en la consulta: " . mysqli_error($conn));
 
-$totalLiquido = 0.00;
-$filas = [];
-while ($fila = mysqli_fetch_assoc($res)) {
-    $filas[] = $fila;
-    $totalLiquido += floatval($fila['liquido_recibir']);
+// =================== Datos: planillas ===================
+$sql = "SELECT *
+        FROM planilla
+        ORDER BY fecha_registro ASC";
+$res = mysqli_query($conn, $sql);
+if (!$res) {
+    die("Error en la consulta: " . mysqli_error($conn));
+}
+if (mysqli_num_rows($res) === 0) {
+    die("No hay planillas disponibles.");
 }
 
-// ====== HTML con formato ======
+// Estructura para filas y totales (para el tfoot)
+$filas = [];
+$contador = 1;
+
+$sum_sueldo = 0.00;
+$sum_hextra_num = 0;
+$sum_hextra_val = 0.00;
+$sum_comisiones = 0.00;
+$sum_bonificacion = 0.00;
+$sum_devengado = 0.00;
+$sum_isss = 0.00;
+$sum_anticipo = 0.00;
+$sum_desc_jud = 0.00;
+$sum_prest = 0.00; // placeholder (no viene de BD)
+$sum_isr = 0.00;
+$sum_descuentos = 0.00;
+$sum_liquido = 0.00;
+
+// Para la certificación
+$totalLiquido = 0.00;
+
+while ($data = mysqli_fetch_assoc($res)) {
+    // Cálculos de presentación (alineados a tu formato de “planilla”)
+    $sueldoBase       = floatval($data['sueldo_base']);
+    $anticipo         = floatval($data['anticipo']);
+    $horasExtras      = intval($data['horas_extras']);
+    $comisiones       = floatval($data['comisiones']);
+    $bonificacion     = floatval($data['bonificacion']);
+    $isss             = floatval($data['isss']);
+    $isr              = floatval($data['isr']);
+    $descJud          = floatval($data['descuentos_judiciales']);
+    $otrosDesc        = floatval($data['otros_descuentos']);
+    $totalDesc        = floatval($data['total_descuentos']);
+    $liquido          = floatval($data['liquido_recibir']);
+
+    // Sueldo ordinario (neto) según tu ejemplo: base - anticipo
+    $sueldoOrdinario  = $sueldoBase - $anticipo;
+    // Valor hora según tu ejemplo (240 h/mes)
+    $valorHora        = ($sueldoBase > 0) ? ($sueldoBase / 240.0) : 0;
+    $valorHorasExtra  = $valorHora * $horasExtras;
+
+    $totalDevengado   = $sueldoOrdinario + $valorHorasExtra + $comisiones + $bonificacion;
+
+    $filas[] = [
+        'no'               => $contador,
+        'nombre'           => htmlspecialchars($data['nombre']),
+        'puesto'           => htmlspecialchars($data['puesto']),
+        'sueldo'           => number_format($sueldoOrdinario, 2),
+        'horas_extras'     => $horasExtras,
+        'valor_extra'      => number_format($valorHorasExtra, 2),
+        'comisiones'       => number_format($comisiones, 2),
+        'bonificacion'     => number_format($bonificacion, 2),
+        'total_devengado'  => number_format($totalDevengado, 2),
+        'isss'             => number_format($isss, 2),
+        'anticipo'         => number_format($anticipo, 2),
+        'descuentos_jud'   => number_format($descJud, 2),
+        'prestaciones'     => number_format(0, 2),
+        'isr'              => number_format($isr, 2),
+        'total_descuentos' => number_format($totalDesc, 2),
+        'liquido'          => number_format($liquido, 2),
+    ];
+
+    // Acumular totales para tfoot
+    $sum_sueldo       += $sueldoOrdinario;
+    $sum_hextra_num   += $horasExtras;
+    $sum_hextra_val   += $valorHorasExtra;
+    $sum_comisiones   += $comisiones;
+    $sum_bonificacion += $bonificacion;
+    $sum_devengado    += $totalDevengado;
+    $sum_isss         += $isss;
+    $sum_anticipo     += $anticipo;
+    $sum_desc_jud     += $descJud;
+    $sum_prest        += 0.00;
+    $sum_isr          += $isr;
+    $sum_descuentos   += $totalDesc;
+    $sum_liquido      += $liquido;
+
+    // Para certificación
+    $totalLiquido     += $liquido;
+
+    $contador++;
+}
+
+// Texto en letras para el certificado
+$enLetras      = numeroEnLetras($totalLiquido);
+$textoNumeros  = number_format($totalLiquido, 2, '.', '');
+
+
+// =================== HTML (formato estilo “planilla”) ===================
 ob_start();
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Certificado de Planillas</title>
-<style>
-@page { margin: 1cm; }
-body { font-family: 'Times New Roman', Times, serif; font-size: 12px; margin:0; padding:10px; }
-.hdr { width:100%; border-collapse:collapse; }
-.hdr td { vertical-align:top; }
-.hdr .left { text-align:center; padding:0 8px; }
-.hdr .right { text-align:right; width:140px; }
-.hdr h1 { margin:0; font-size:14px; font-weight:bold; text-transform:uppercase; }
-.divider { border-bottom:2px solid #000; margin:6px 0 10px 0; }
-.logo { width:110px; height:auto; }
+  <meta charset="utf-8">
+  <title>Certificado de Planillas — Listado</title>
+  <style>
+    @page { margin: 1cm; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12px;
+      margin: 0; padding: 10px;
+    }
 
-table { border:2px solid #000; border-collapse:collapse; width:100%; margin-top:10px; }
-th, td { border:1px solid #000; padding:6px 8px; vertical-align:middle; }
-thead th { background:#f2f2f2; font-weight:bold; text-align:center; }
-td.num { text-align:right; }
-.totales { margin-top:30px; font-style:italic; }
-.firma { margin-top:60px; text-align:right; }
-.footer { position:fixed; bottom:8px; left:10px; right:10px; font-size:12px; text-align:left; }
+    /* Encabezado corporativo en dos columnas */
+    .hdr { width: 100%; border-collapse: collapse; }
+    .hdr td { vertical-align: top; }
+    .hdr .left { text-align: center; padding: 0 8px; }
+    .hdr .right { text-align: right; width: 140px; }
+    .hdr h1 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .divider { border-bottom: 2px solid #000; margin: 6px 0 10px 0; }
+    .logo { width: 110px; height: auto; }
 
- .hdr-wrap{
+    /* Tabla principal */
+    table.tbl {
+      border: 2px solid #000;
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      table-layout: fixed;
+    }
+    .tbl th, .tbl td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      vertical-align: middle;
+      text-align: center;
+      word-wrap: break-word;
+    }
+    .tbl thead th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .num { text-align: right !important; }
+    tfoot td, tfoot th { font-weight: bold; }
+
+    /* Bloque certificación y firma */
+    .cert {
+      margin-top: 14px;
+      font-style: italic;
+      line-height: 1.3;
+      text-align: justify;
+    }
+    .firma {
+      margin-top: 36px;
+      text-align: right;
+    }
+
+    /* Pie fijo */
+    .footer {
+      position: fixed;
+      bottom: 8px; left: 10px; right: 10px;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .hdr-wrap{
   position: relative;
   width: 100%;
   text-align: center;     /* centra el bloque del título en toda la hoja */
@@ -126,89 +261,133 @@ td.num { text-align:right; }
   height: auto;
 }
 .divider{ border-bottom:1px solid #000; margin:4px 0 6px; }
-</style>
+
+
+  </style>
 </head>
 <body>
 
-<!-- Encabezado centrado con logo fijo a la derecha -->
-<div class="hdr-wrap">
-  <div class="hdr-title">
-    <h1>CERTIFICADO DE PLANILLAS GENERADAS</h1>
-    <div><?= $empresa_nombre ?></div>
+
+  <!-- Encabezado -->
+  <table class="hdr">
+    <tr>
+      <td class="left">
+         <div class="hdr-wrap">
+          <div class="hdr-title">
+           <h1>CERTIFICADO DE PLANILLAS GENERADAS</h1>
+         <div><?= $empresa_nombre ?></div>
+  </div>
+      </td>
+      
+      <td class="right">
+        <?php if (!empty($logo_base64)): ?>
+          <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
+        <?php endif; ?>
+      </td>
+    </tr>
+  </table>
+  <div class="divider"></div>
+
+  <!-- Tabla estilo planilla -->
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:40px;">No.</th>
+        <th style="width:160px;">Nombres</th>
+        <th style="width:120px;">Cargo</th>
+        <th style="width:90px;">Sueldo Ordinario</th>
+        <th style="width:70px;">Horas Extras<br>Número</th>
+        <th style="width:90px;">Horas Extras<br>Valor</th>
+        <th style="width:90px;">Comisiones</th>
+        <th style="width:90px;">Bonificación</th>
+        <th style="width:100px;">Total Devengado</th>
+        <th style="width:80px;">IGSS</th>
+        <th style="width:80px;">Antic.</th>
+        <th style="width:80px;">Judic.</th>
+        <th style="width:80px;">Prest.</th>
+        <th style="width:80px;">ISR</th>
+        <th style="width:110px;">Total Descuentos</th>
+        <th style="width:110px;">Total Líquido</th>
+      </tr>
+    </thead>
+    <tbody>
+    <?php foreach ($filas as $f): ?>
+      <tr>
+        <td><?= $f['no'] ?></td>
+        <td><?= $f['nombre'] ?></td>
+        <td><?= $f['puesto'] ?></td>
+        <td class="num">Q <?= $f['sueldo'] ?></td>
+        <td class="num"><?= $f['horas_extras'] ?></td>
+        <td class="num">Q <?= $f['valor_extra'] ?></td>
+        <td class="num">Q <?= $f['comisiones'] ?></td>
+        <td class="num">Q <?= $f['bonificacion'] ?></td>
+        <td class="num">Q <?= $f['total_devengado'] ?></td>
+        <td class="num">Q <?= $f['isss'] ?></td>
+        <td class="num">Q <?= $f['anticipo'] ?></td>
+        <td class="num">Q <?= $f['descuentos_jud'] ?></td>
+        <td class="num">Q <?= $f['prestaciones'] ?></td>
+        <td class="num">Q <?= $f['isr'] ?></td>
+        <td class="num">Q <?= $f['total_descuentos'] ?></td>
+        <td class="num"><strong>Q <?= $f['liquido'] ?></strong></td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="3" style="text-align:right;">TOTALES</th>
+        <th class="num">Q <?= number_format($sum_sueldo, 2) ?></th>
+        <th class="num"><?= number_format($sum_hextra_num, 0) ?></th>
+        <th class="num">Q <?= number_format($sum_hextra_val, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_comisiones, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_bonificacion, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_devengado, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_isss, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_anticipo, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_desc_jud, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_prest, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_isr, 2) ?></th>
+        <th class="num">Q <?= number_format($sum_descuentos, 2) ?></th>
+        <th class="num"><strong>Q <?= number_format($sum_liquido, 2) ?></strong></th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Bloque de certificación (igual a tu certificado, pero bajo el formato nuevo) -->
+  <div class="cert">
+    DE CONFORMIDAD CON LOS DATOS ANTERIORES, EL TOTAL DEVENGADO DE LA PRESENTE PLANILLA
+    ASCIENDE A LA CANTIDAD DE <?= htmlspecialchars($enLetras) ?> (Q <?= $textoNumeros ?>).
   </div>
 
-  <?php if (!empty($logo_base64)): ?>
-    <img class="logo" src="data:image/png;base64,<?= $logo_base64 ?>" alt="Logo">
-  <?php endif; ?>
-</div>
-<div class="divider"></div>
+  <!-- Firma -->
+  <div class="firma">
+    _______________________________<br>
+    Oscar<br>
+    Contador General
+  </div>
 
-<!-- Tabla -->
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Empleado</th>
-<th>Puesto</th>
-<th>Fecha</th>
-<th>Líquido a recibir (Q)</th>
-</tr>
-</thead>
-<tbody>
-<?php
-$contador=1;
-foreach ($filas as $f):
-?>
-<tr>
-<td><?= $contador++ ?></td>
-<td><?= htmlspecialchars($f['nombre']) ?></td>
-<td><?= htmlspecialchars($f['puesto']) ?></td>
-<td><?= htmlspecialchars($f['fecha_registro']) ?></td>
-<td class="num"><?= number_format($f['liquido_recibir'], 2) ?></td>
-</tr>
-<?php endforeach; ?>
-</tbody>
-<tfoot>
-<tr>
-<th colspan="4" style="text-align:right;">TOTAL:</th>
-<th class="num">Q <?= number_format($totalLiquido, 2) ?></th>
-</tr>
-</tfoot>
-</table>
+  <p style="text-align:right; margin-top:8px;">Generado: <?= date('d/m/Y H:i') ?></p>
 
-<div class="totales">
-<?php
-$enLetras = numeroEnLetras($totalLiquido);
-$textoNumeros = number_format($totalLiquido, 2, '.', '');
-?>
-DE CONFORMIDAD CON LOS DATOS ANTERIORES, EL TOTAL DEVENGADO DE LA PRESENTE PLANILLA ASCIENDE A LA CANTIDAD DE <?= $enLetras ?> (Q <?= $textoNumeros ?>).
-</div>
-
-<div class="firma">
-_______________________________<br>
-Oscar<br>
-Contador General
-</div>
-
-<!-- Pie de página -->
-<div class="footer">
-<?= $empresa_nombre ?> — Fecha de emisión: <?= date('d/m/Y') ?>
-</div>
+  <!-- Pie fijo -->
+  <div class="footer">
+    <?= htmlspecialchars($empresa_nombre) ?> — Fecha de emisión: <?= date('d/m/Y') ?>
+  </div>
 
 </body>
 </html>
 <?php
 $html = ob_get_clean();
 
-// ====== PDF ======
+
+// =================== PDF ===================
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
+
 $dompdf = new Dompdf($options);
 $dompdf->loadHtml($html);
-$dompdf->setPaper('letter', 'portrait');
+$dompdf->setPaper('letter', 'landscape'); // formato de planilla
 $dompdf->render();
 
-header("Content-type: application/pdf");
+header("Content-Type: application/pdf");
 header("Content-Disposition: inline; filename=certificado_planillas.pdf");
 echo $dompdf->output();
 exit;

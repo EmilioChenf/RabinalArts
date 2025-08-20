@@ -60,7 +60,7 @@ if ($res = $conn->query($sqlProd)) {
 
 
 // opciones de forma de pago
-$formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
+$formas_pago = ['Efectivo', 'Crédito', 'Bancos', 'Transferencia'];
 ?>
 
 <!doctype html>
@@ -351,7 +351,7 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
 
     <?php if (isset($_GET['success'])): ?>
       <script>
-        Swal && Swal.fire({
+        window.Swal && Swal.fire({
           icon: 'success',
           title: '¡Compras registradas!',
           showConfirmButton: false,
@@ -375,7 +375,7 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
         <input type="text" name="periodo_pago" id="periodo_pago" class="form-control" placeholder="Ej. 30 días crédito" required>
       </div>
 
-      <!-- CAMBIO: nombre del producto -> SELECT poblado desde gestion_productos_internos -->
+      <!-- nombre del producto desde gestion_productos_internos -->
       <div class="col-md-6">
         <label class="form-label">Nombre del producto comprado</label>
         <select name="nombre_producto" id="nombre_producto" class="form-select" required>
@@ -432,9 +432,17 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
         <table class="table table-sm table-bordered" id="comprasTable">
           <thead class="table-light">
             <tr>
-              <th>#</th><th>Forma pago</th><th>Periodo</th><th>Producto</th>
-              <th>Cuenta</th><th>Precio</th><th>Valor sin IVA</th>
-              <th>Valor IVA</th><th>Total sin IVA</th><th>Total general</th><th>Acción</th>
+              <th>#</th>
+              <th>Forma pago</th>
+              <th>Periodo</th>
+              <th>Producto</th>
+              <th>Cuenta</th>
+              <th>Precio</th>
+              <th>Valor sin IVA</th>
+              <th>Valor IVA</th>
+              <th>Total sin IVA</th>
+              <th>Total general</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -451,84 +459,114 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
 </main>
 
 <script>
-// Autocompleta cuenta y precio al elegir producto
-(function () {
-  const sel = document.getElementById('nombre_producto');
-  const cuenta = document.getElementById('numero_cuenta_contable');
-  const precio = document.getElementById('precio_producto');
-
-  function calcularIVA() {
-    const p = parseFloat(precio.value) || 0;
-    const sinIva = +(p / 1.12).toFixed(2);
-    const iva    = +(p - sinIva).toFixed(2);
-    document.getElementById('valor_sin_iva').value = sinIva.toFixed(2);
-    document.getElementById('valor_iva').value = iva.toFixed(2);
-    document.getElementById('total_sin_iva_general').value = sinIva.toFixed(2);
-    document.getElementById('total_general').value = p.toFixed(2);
-  }
-
-  if (sel) {
-    sel.addEventListener('change', function () {
-      const o = this.selectedOptions[0];
-      if (!o) return;
-      const cta = o.getAttribute('data-cuenta') || '';
-      const prc = o.getAttribute('data-precio') || '';
-      if (cta)  cuenta.value = cta;
-      if (prc) { precio.value = prc; calcularIVA(); }
-    });
-  }
-  if (precio) { precio.addEventListener('input', calcularIVA); }
-})();
-</script>
-
-
-<script>
+/* ========= ÚNICO SCRIPT DE LA VISTA ========= */
 (function() {
+  // --- Estado ---
   const compras = [];
-  const tableBody = document.querySelector('#comprasTable tbody');
-  const formaPagoEl          = document.getElementById('forma_pago');
-  const periodoPagoEl        = document.getElementById('periodo_pago');
-  const nombreProductoEl     = document.getElementById('nombre_producto');
-  const cuentaContableEl     = document.getElementById('numero_cuenta_contable');
-  const precioEl             = document.getElementById('precio_producto');
-  const valorSinIvaEl        = document.getElementById('valor_sin_iva');
-  const valorIvaEl           = document.getElementById('valor_iva');
-  const totalSinIvaGenEl     = document.getElementById('total_sin_iva_general');
-  const totalGeneralEl       = document.getElementById('total_general');
-  const comprasDataEl        = document.getElementById('compras_data');
-  const addBtn               = document.getElementById('addCompra');
-  const formEl               = document.getElementById('comprasForm');
 
-  // Recalcular a partir del precio con IVA
-  function recalc() {
-    const price  = parseFloat(precioEl.value) || 0;
-    const sinIva = price / 1.12;
-    const iva    = price - sinIva;
-    valorSinIvaEl.value    = sinIva.toFixed(2);
-    valorIvaEl.value       = iva.toFixed(2);
-    totalSinIvaGenEl.value = sinIva.toFixed(2);
-    totalGeneralEl.value   = price.toFixed(2);
+  // --- DOM ---
+  const formaPagoEl      = document.getElementById('forma_pago');
+  const periodoPagoEl    = document.getElementById('periodo_pago');
+  const nombreProductoEl = document.getElementById('nombre_producto');
+  const cuentaEl         = document.getElementById('numero_cuenta_contable');
+  const precioEl         = document.getElementById('precio_producto');
+  const sinIvaEl         = document.getElementById('valor_sin_iva');
+  const ivaEl            = document.getElementById('valor_iva');
+  const totalSinIvaEl    = document.getElementById('total_sin_iva_general');
+  const totalGeneralEl   = document.getElementById('total_general');
+  const addBtn           = document.getElementById('addCompra');
+  const tableBody        = document.querySelector('#comprasTable tbody');
+  const formEl           = document.getElementById('comprasForm');
+  const comprasDataEl    = document.getElementById('compras_data');
+
+  // --- Helpers ---
+  function parseNum(v) {
+    if (typeof v === 'string') v = v.replace(',', '.');
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
   }
-  precioEl.addEventListener('input', recalc);
-  recalc();
 
+  function calcDesdePrecioConIVA() {
+    const p = parseNum(precioEl.value);
+    const sin = +(p / 1.12).toFixed(2);
+    const iva = +(p - sin).toFixed(2);
+    sinIvaEl.value       = sin.toFixed(2);
+    ivaEl.value          = iva.toFixed(2);
+    totalSinIvaEl.value  = sin.toFixed(2);
+    totalGeneralEl.value = p.toFixed(2);
+  }
+
+  function renumerar() {
+    [...tableBody.children].forEach((tr, i) => tr.querySelector('td').textContent = i + 1);
+  }
+
+  function validarFila(compra) {
+    if (!compra.forma_pago) return false;
+    if (!compra.nombre_producto) return false;
+    if (!compra.numero_cuenta_contable) return false;
+    if (compra.precio_producto <= 0) return false;
+    // Periodo: solo obligatorio si NO es efectivo
+    if (compra.forma_pago !== 'Efectivo' && !compra.periodo_pago) return false;
+    return true;
+  }
+
+  // --- UI Logic ---
+  // Bloquear/Desbloquear periodo según forma de pago
+  function syncPeriodo() {
+    if (formaPagoEl.value === 'Efectivo') {
+      periodoPagoEl.value = 'No aplica para efectivo';
+      periodoPagoEl.setAttribute('readonly', 'readonly');
+      periodoPagoEl.setAttribute('disabled', 'disabled');
+      periodoPagoEl.removeAttribute('required');
+    } else {
+      periodoPagoEl.removeAttribute('readonly');
+      periodoPagoEl.removeAttribute('disabled');
+      periodoPagoEl.setAttribute('required', 'required');
+      if (periodoPagoEl.value === 'No aplica para efectivo') {
+        periodoPagoEl.value = '';
+      }
+    }
+  }
+  formaPagoEl.addEventListener('change', syncPeriodo);
+  syncPeriodo(); // inicial
+
+  // Autocompletar cuenta y precio desde el producto
+  nombreProductoEl.addEventListener('change', function() {
+    const opt = this.selectedOptions[0];
+    if (!opt) return;
+    const cta = opt.getAttribute('data-cuenta') || '';
+    const prc = opt.getAttribute('data-precio') || '';
+    if (cta) cuentaEl.value = cta;
+    if (prc) {
+      precioEl.value = prc;
+      calcDesdePrecioConIVA();
+    }
+  });
+
+  // Recalcular si el usuario edita el precio manualmente
+  precioEl.addEventListener('input', calcDesdePrecioConIVA);
+  calcDesdePrecioConIVA();
+
+  // Agregar compra
   addBtn.addEventListener('click', function() {
     const compra = {
-      forma_pago:              formaPagoEl.value.trim(),
-      periodo_pago:            periodoPagoEl.value.trim(),
-      nombre_producto:         nombreProductoEl.value.trim(),
-      numero_cuenta_contable:  cuentaContableEl.value.trim(),
-      precio_producto:         parseFloat(precioEl.value)            || 0,
-      valor_sin_iva:           parseFloat(valorSinIvaEl.value)       || 0,
-      valor_iva:               parseFloat(valorIvaEl.value)          || 0,
-      total_sin_iva_general:   parseFloat(totalSinIvaGenEl.value)    || 0,
-      total_general:           parseFloat(totalGeneralEl.value)      || 0
+      forma_pago:             (formaPagoEl.value || '').trim(),
+      periodo_pago:           (formaPagoEl.value === 'Efectivo')
+                                ? 'No aplica para efectivo'
+                                : (periodoPagoEl.value || '').trim(),
+      nombre_producto:        (nombreProductoEl.value || '').trim(),
+      numero_cuenta_contable: (cuentaEl.value || '').trim(),
+      precio_producto:        parseNum(precioEl.value),
+      valor_sin_iva:          parseNum(sinIvaEl.value),
+      valor_iva:              parseNum(ivaEl.value),
+      total_sin_iva_general:  parseNum(totalSinIvaEl.value),
+      total_general:          parseNum(totalGeneralEl.value)
     };
-    if (!compra.forma_pago || !compra.periodo_pago ||
-        !compra.nombre_producto || !compra.numero_cuenta_contable ||
-        compra.precio_producto <= 0) {
-      return Swal.fire('Completa todos los campos y un precio válido.', '', 'warning');
+
+    if (!validarFila(compra)) {
+      return window.Swal && Swal.fire('Completa todos los campos antes de agregar.', '', 'warning');
     }
+
     compras.push(compra);
 
     const tr = document.createElement('tr');
@@ -546,141 +584,32 @@ $formas_pago = ['Efectivo', 'Crédito', 'Crédito con documentos: Cheque'];
       <td><button type="button" class="btn btn-sm btn-danger btn-remove">✕</button></td>
     `;
     tableBody.appendChild(tr);
-    tr.querySelector('.btn-remove').addEventListener('click', () => {
-      const idx = Array.from(tableBody.children).indexOf(tr);
-      compras.splice(idx, 1);
+
+    tr.querySelector('.btn-remove').addEventListener('click', function() {
+      const idx = [...tableBody.children].indexOf(tr);
+      if (idx > -1) compras.splice(idx, 1);
       tr.remove();
-      Array.from(tableBody.children).forEach((r,i) =>
-        r.firstElementChild.textContent = i+1
-      );
+      renumerar();
     });
 
+    // Limpiar formulario (pero mantener forma de pago actual)
+    const forma = formaPagoEl.value;
     formEl.reset();
-    recalc();
+    formaPagoEl.value = forma;
+    syncPeriodo();
+    calcDesdePrecioConIVA();
   });
 
+  // Submit
   formEl.addEventListener('submit', function(e) {
     if (compras.length === 0) {
       e.preventDefault();
-      return Swal.fire('Agrega al menos una compra antes de registrar.', '', 'error');
+      return window.Swal && Swal.fire('Agrega al menos una compra antes de registrar.', '', 'error');
     }
     comprasDataEl.value = JSON.stringify(compras);
   });
 })();
 </script>
-  <footer class="app-footer">
-      <div class="float-end d-none d-sm-inline">RabinalArts</div>
-      <strong>&copy; 2014-2025</strong> Todos los derechos reservados.
-    </footer>
-  </div>
 
-  <script src="../../../dist/js/adminlte.js"></script>
-  <script>
-  (function() {
-    const compras = [];
-    const tableBody = document.querySelector('#comprasTable tbody');
-    const formaPagoEl = document.getElementById('forma_pago');
-    const periodoPagoEl = document.getElementById('periodo_pago');
-    const nombreProductoEl = document.getElementById('nombre_producto');
-    const cuentaContableEl = document.getElementById('numero_cuenta_contable');
-    const valorIvaEl = document.getElementById('valor_iva');
-    const valorSinIvaEl = document.getElementById('valor_sin_iva');
-    const totalSinIvaProdEl = document.getElementById('total_producto_sin_iva');
-    const totalIvaEl = document.getElementById('total_iva');
-    const totalSinIvaGenEl = document.getElementById('total_sin_iva_general');
-    const totalGeneralEl = document.getElementById('total_general');
-    const comprasDataEl = document.getElementById('compras_data');
-    const addBtn = document.getElementById('addCompra');
-    const formEl = document.getElementById('comprasForm');
-
-    function recalc() {
-      const iva = parseFloat(valorIvaEl.value) || 0;
-      const sin = parseFloat(valorSinIvaEl.value) || 0;
-      const total = sin + iva;
-      totalSinIvaProdEl.value = sin.toFixed(2);
-      totalIvaEl.value = iva.toFixed(2);
-      totalSinIvaGenEl.value = sin.toFixed(2);
-      totalGeneralEl.value = total.toFixed(2);
-    }
-    [valorIvaEl, valorSinIvaEl].forEach(el => el.addEventListener('input', recalc));
-    recalc();
-
-    addBtn.addEventListener('click', () => {
-      const compra = {
-        forma_pago: formaPagoEl.value.trim(),
-        periodo_pago: periodoPagoEl.value.trim(),
-        nombre_producto: nombreProductoEl.value.trim(),
-        numero_cuenta_contable: cuentaContableEl.value.trim(),
-        valor_iva: parseFloat(valorIvaEl.value) || 0,
-        valor_sin_iva: parseFloat(valorSinIvaEl.value) || 0,
-        total_producto_sin_iva: parseFloat(totalSinIvaProdEl.value) || 0,
-        total_iva: parseFloat(totalIvaEl.value) || 0,
-        total_sin_iva_general: parseFloat(totalSinIvaGenEl.value) || 0,
-        total_general: parseFloat(totalGeneralEl.value) || 0
-      };
-      if (!compra.forma_pago || !compra.periodo_pago ||
-          !compra.nombre_producto || !compra.numero_cuenta_contable) {
-        return Swal.fire('Completa todos los campos antes de agregar.', '', 'warning');
-      }
-      compras.push(compra);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${compras.length}</td>
-        <td>${compra.forma_pago}</td>
-        <td>${compra.periodo_pago}</td>
-        <td>${compra.nombre_producto}</td>
-        <td>${compra.numero_cuenta_contable}</td>
-        <td>Q${compra.valor_iva.toFixed(2)}</td>
-        <td>Q${compra.valor_sin_iva.toFixed(2)}</td>
-        <td>Q${compra.total_producto_sin_iva.toFixed(2)}</td>
-        <td>Q${compra.total_iva.toFixed(2)}</td>
-        <td>Q${compra.total_general.toFixed(2)}</td>
-        <td><button type="button" class="btn btn-sm btn-danger btn-remove">✕</button></td>
-      `;
-      tableBody.appendChild(tr);
-      tr.querySelector('.btn-remove').addEventListener('click', () => {
-        const idx = Array.from(tableBody.children).indexOf(tr);
-        compras.splice(idx, 1);
-        tr.remove();
-        Array.from(tableBody.children).forEach((r, i) => r.firstChild.textContent = i+1);
-      });
-      formEl.reset();
-      recalc();
-    });
-
-    formEl.addEventListener('submit', e => {
-      if (compras.length === 0) {
-        e.preventDefault();
-        return Swal.fire('Agrega al menos una compra antes de registrar.', '', 'error');
-      }
-      comprasDataEl.value = JSON.stringify(compras);
-    });
-  })();
-  </script>
-
-
-    <footer class="app-footer">
-      <div class="float-end d-none d-sm-inline">Anything you want</div>
-      <strong>Copyright &copy; 2014-2024</strong> All rights reserved.
-    </footer>
-  </div>
-
-  <script src="../../../dist/js/adminlte.js"></script>
-  <script>
-    function calcularTotales() {
-      const iva = parseFloat(document.getElementById('valor_iva').value) || 0;
-      const sin = parseFloat(document.getElementById('valor_sin_iva').value) || 0;
-      document.getElementById('total_producto_sin_iva').value = sin.toFixed(2);
-      document.getElementById('total_iva').value            = iva.toFixed(2);
-      document.getElementById('total_sin_iva_general').value = sin.toFixed(2);
-      document.getElementById('total_general').value        = (iva + sin).toFixed(2);
-    }
-    document.getElementById('valor_iva').addEventListener('input', calcularTotales);
-    document.getElementById('valor_sin_iva').addEventListener('input', calcularTotales);
-    calcularTotales();
-
-
-    
-  </script>
 </body>
 </html>

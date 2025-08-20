@@ -2,26 +2,50 @@
 // factura_planilla.php
 include 'conexion.php';
 
-// 1) Si se pasa planilla_id por GET, cargamos esa planilla
-$planilla_info = [];
-if (isset($_GET['planilla_id'])) {
-    $pid = (int)$_GET['planilla_id'];
+// ===== Entrada por mes (YYYY-MM) =====
+$periodo_mes = isset($_GET['periodo_mes']) ? trim($_GET['periodo_mes']) : '';
+$planillas = [];
+$tot = ['sueldos'=>0.0, 'bonif'=>0.0, 'liquido'=>0.0];
+
+if ($periodo_mes !== '' && preg_match('/^\d{4}-\d{2}$/', $periodo_mes)) {
+    $start = $periodo_mes . '-01';
+    // fin exclusivo = primer día del mes siguiente
+    $end   = date('Y-m-d', strtotime($start . ' +1 month'));
+
     $stmt = $conn->prepare("
-        SELECT
-          id, nombre, puesto, sueldo_base, horas_extras, comisiones,
-          bonificacion, anticipo, total_ingresos, isss, isr,
-          descuentos_judiciales, otros_descuentos, total_descuentos,
-          liquido_recibir, fecha_registro
-        FROM planilla
-        WHERE id = ?
+        SELECT id, nombre, puesto, sueldo_base, bonificacion, liquido_recibir, fecha_registro
+          FROM planilla
+         WHERE fecha_registro >= ? AND fecha_registro < ?
+         ORDER BY fecha_registro, nombre
     ");
-    $stmt->bind_param("i", $pid);
+    $stmt->bind_param('ss', $start, $end);
     $stmt->execute();
-    $planilla_info = $stmt->get_result()->fetch_assoc();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $planillas[] = $row;
+        $tot['sueldos']  += (float)$row['sueldo_base'];
+        $tot['bonif']    += (float)$row['bonificacion'];
+        $tot['liquido']  += (float)$row['liquido_recibir'];
+    }
     $stmt->close();
 }
-?>
 
+// ===== Cálculos agregados del mes =====
+// (Todos con base en TOTAL LIQUIDADO del mes, como pediste)
+$igssLab   = round($tot['liquido'] * 0.0483, 2);
+$patronal  = round($tot['liquido'] * 0.1267, 2);
+$baseISR   = ($tot['liquido'] - 4000.00) - $igssLab;  // regla solicitada
+$isr       = round(max($baseISR, 0) * 0.05, 2);
+
+// DEBE = Sueldos + Bonif + Cuota patronal (como gasto)
+$totalDebe = round($tot['sueldos'] + $tot['bonif'] + $patronal, 2);
+
+// HABER parcial = IGSS laboral + Patronales por pagar + ISR por pagar
+$otrosHaber = round($igssLab + $patronal + $isr, 2);
+
+// HABER Bancos/Caja (neto a pagar)
+$bancosCaja = round($totalDebe - $otrosHaber, 2);
+?>
 <!doctype html>
 <html lang="en">
   <!--begin::Head-->
@@ -305,165 +329,191 @@ if (isset($_GET['planilla_id'])) {
 <main class="app-main p-4">
   <div class="container">
 
-    <!-- Logo en la esquina superior -->
+    <!-- Logo -->
     <div style="position: relative;">
       <img src="../../../dist/assets/img/rabi.png"
            alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
-    <h1 class="mb-4">Detalle / Comprobante de Planilla</h1>
+    <h1 class="mb-4">Planillas por Mes</h1>
 
-    <!-- Encabezado de empresa -->
     <div class="mb-3">
       <h4 class="fw-bold">RABINALARTS</h4>
-      <p>
-        <strong>Fecha:</strong> <?= date("Y-m-d") ?>
-        | <strong>Folio:</strong>
-        <?= isset($planilla_info['id'])
-            ? str_pad($planilla_info['id'], 5, "0", STR_PAD_LEFT)
-            : '----' ?>
-      </p>
+      <p><strong>Fecha:</strong> <?= date("Y-m-d") ?></p>
     </div>
 
-    <!-- Form para buscar una planilla -->
+    <!-- Buscar por mes -->
     <form method="GET" class="row g-3 mb-4">
-      <div class="col-md-3">
-        <label for="planilla_id" class="form-label">ID de Planilla</label>
-        <input
-          type="number"
-          name="planilla_id"
-          id="planilla_id"
-          class="form-control"
-          required
-          value="<?= isset($_GET['planilla_id']) ? (int)$_GET['planilla_id'] : '' ?>"
-        />
+      <div class="col-md-4">
+        <label for="periodo_mes" class="form-label">Mes</label>
+        <input type="month" name="periodo_mes" id="periodo_mes" class="form-control"
+               value="<?= htmlspecialchars($periodo_mes ?: date('Y-m')) ?>" required>
       </div>
       <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" class="btn btn-dark">Buscar Planilla</button>
+        <button type="submit" class="btn btn-dark w-100">Buscar</button>
       </div>
     </form>
 
-    <?php if (!empty($planilla_info)): ?>
-      <!-- Detalles de la planilla en tabla -->
+    <?php if ($periodo_mes && count($planillas) > 0): ?>
+      <!-- Resumen del mes -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="fw-bold">Total Sueldos</div>
+              <div>Q<?= number_format($tot['sueldos'], 2) ?></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="fw-bold">Total Bonificaciones</div>
+              <div>Q<?= number_format($tot['bonif'], 2) ?></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="fw-bold">Total Liquidado (base cálculos)</div>
+              <div>Q<?= number_format($tot['liquido'], 2) ?></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="fw-bold">Registros del mes</div>
+              <div><?= count($planillas) ?></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de planillas del mes -->
       <div class="mb-4">
-        <h5>Detalles de la Planilla</h5>
-        <table class="table table-bordered bg-light">
+        <h5>Detalle de Planillas del mes <?= htmlspecialchars($periodo_mes) ?></h5>
+        <table class="table table-bordered table-sm bg-light">
           <thead class="table-secondary">
             <tr>
-              <th>Campo</th>
-              <th>Valor</th>
+              <th>#</th>
+              <th>Empleado</th>
+              <th>Puesto</th>
+              <th>Sueldo base</th>
+              <th>Bonificación</th>
+              <th>Liquido recibir</th>
+              <th>Fecha</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>ID</td><td><?= $planilla_info['id'] ?></td></tr>
-            <tr><td>Empleado</td><td><?= htmlspecialchars($planilla_info['nombre']) ?></td></tr>
-            <tr><td>Puesto</td><td><?= htmlspecialchars($planilla_info['puesto']) ?></td></tr>
-            <tr><td>Sueldo base</td><td>Q<?= number_format($planilla_info['sueldo_base'], 2) ?></td></tr>
-            <tr><td>Horas extras</td><td><?= (int)$planilla_info['horas_extras'] ?></td></tr>
-            <tr><td>Comisiones</td><td>Q<?= number_format($planilla_info['comisiones'], 2) ?></td></tr>
-            <tr><td>Bonificación</td><td>Q<?= number_format($planilla_info['bonificacion'], 2) ?></td></tr>
-            <tr><td>Anticipo</td><td>Q<?= number_format($planilla_info['anticipo'], 2) ?></td></tr>
-
-            <tr><td>Total ingresos</td><td>Q<?= number_format($planilla_info['total_ingresos'], 2) ?></td></tr>
-            <tr><td>IGSS/ISSS (registro)</td><td>Q<?= number_format($planilla_info['isss'], 2) ?></td></tr>
-            <tr><td>ISR (registro)</td><td>Q<?= number_format($planilla_info['isr'], 2) ?></td></tr>
-
-            <tr><td>Descuentos judiciales</td><td>Q<?= number_format($planilla_info['descuentos_judiciales'], 2) ?></td></tr>
-            <tr><td>Otros descuentos</td><td>Q<?= number_format($planilla_info['otros_descuentos'], 2) ?></td></tr>
-            <tr><td>Total descuentos</td><td>Q<?= number_format($planilla_info['total_descuentos'], 2) ?></td></tr>
-
-            <tr><td>Líquido a recibir</td><td><strong>Q<?= number_format($planilla_info['liquido_recibir'], 2) ?></strong></td></tr>
-            <tr><td>Fecha de registro</td><td><?= $planilla_info['fecha_registro'] ?></td></tr>
+          <?php foreach ($planillas as $i => $p): ?>
+            <tr>
+              <td><?= $i+1 ?></td>
+              <td><?= htmlspecialchars($p['nombre']) ?></td>
+              <td><?= htmlspecialchars($p['puesto']) ?></td>
+              <td>Q<?= number_format($p['sueldo_base'], 2) ?></td>
+              <td>Q<?= number_format($p['bonificacion'], 2) ?></td>
+              <td>Q<?= number_format($p['liquido_recibir'], 2) ?></td>
+              <td><?= htmlspecialchars($p['fecha_registro']) ?></td>
+            </tr>
+          <?php endforeach; ?>
           </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3" class="text-end">Totales:</th>
+              <th>Q<?= number_format($tot['sueldos'], 2) ?></th>
+              <th>Q<?= number_format($tot['bonif'], 2) ?></th>
+              <th>Q<?= number_format($tot['liquido'], 2) ?></th>
+              <th></th>
+            </tr>
+          </tfoot>
         </table>
-
-        <!-- Controles Partida Automática -->
-        <div class="row g-3 mb-2">
-          <div class="col-md-3">
-            <label class="form-label">Medio de pago</label>
-            <select id="medio_pago" class="form-select">
-              <option value="Bancos">Bancos</option>
-              <option value="Caja">Caja</option>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Descripción (opcional)</label>
-            <input id="desc_partida" class="form-control"
-                   placeholder="Ej. Planilla mensual (PID <?= (int)$planilla_info['id'] ?>)">
-          </div>
-          <div class="col-md-3 d-flex align-items-end">
-            <button type="button" id="btnPartidaAuto" class="btn btn-primary w-100">
-              ⚡ Generar Partida Automática
-            </button>
-          </div>
-        </div>
-
-        <!-- Botones de acción -->
-        <div class="d-flex gap-2 mb-2">
-          <a
-            href="exportar_planilla_pdf.php?id=<?= $planilla_info['id'] ?>"
-            target="_blank"
-            class="btn btn-outline-danger"
-          >
-            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-          </a>
-
-          <button
-            type="button"
-            id="btnPartidaContablePlanilla"
-            class="btn btn-outline-danger"
-          >
-            <i class="bi bi-journal-text"></i> Generar Partida Manual
-          </button>
-        </div>
-
-        <div id="exportBtnContainer" class="mt-2"></div>
-
       </div>
 
+      <!-- Vista previa de la partida agregada -->
+      <div class="mb-3">
+        <h5>Previa de Partida (mensual agregada)</h5>
+        <table class="table table-bordered table-sm">
+          <thead class="table-light">
+            <tr><th>Cuenta</th><th class="text-end">Debe</th><th class="text-end">Haber</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Sueldos</td><td class="text-end">Q<?= number_format($tot['sueldos'],2) ?></td><td class="text-end">Q0.00</td></tr>
+            <tr><td>Bonificaciones</td><td class="text-end">Q<?= number_format($tot['bonif'],2) ?></td><td class="text-end">Q0.00</td></tr>
+            <tr><td>Cuota Patronal Sueldos (12.67%)</td><td class="text-end">Q<?= number_format($patronal,2) ?></td><td class="text-end">Q0.00</td></tr>
+
+            <tr><td>Cuota Laboral IGSS por Pagar (4.83%)</td><td class="text-end">Q0.00</td><td class="text-end">Q<?= number_format($igssLab,2) ?></td></tr>
+            <tr><td>Cuotas Patronales por Pagar</td><td class="text-end">Q0.00</td><td class="text-end">Q<?= number_format($patronal,2) ?></td></tr>
+            <tr><td>ISR por Pagar sobre Sueldos</td><td class="text-end">Q0.00</td><td class="text-end">Q<?= number_format($isr,2) ?></td></tr>
+            <tr><td>Bancos/Caja (neto a pagar)</td><td class="text-end">Q0.00</td><td class="text-end">Q<?= number_format($bancosCaja,2) ?></td></tr>
+          </tbody>
+          <tfoot class="table-secondary">
+            <tr>
+              <th>Total</th>
+              <th class="text-end">Q<?= number_format($totalDebe,2) ?></th>
+              <th class="text-end">Q<?= number_format($otrosHaber + $bancosCaja,2) ?></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Controles para generar partida -->
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Medio de pago</label>
+          <select id="medio_pago" class="form-select">
+            <option value="Bancos">Bancos</option>
+            <option value="Caja">Caja</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Descripción (opcional)</label>
+          <input id="desc_partida" class="form-control"
+                 value="<?= 'Planilla mensual '.$periodo_mes ?>">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="button" id="btnPartidaAuto" class="btn btn-primary w-100">
+            ⚡ Generar Partida del Mes
+          </button>
+        </div>
+      </div>
+
+      <div id="exportBtnContainer" class="mt-3"></div>
+
       <script>
-        // Manual (tu pantalla antigua)
-        document.getElementById('btnPartidaContablePlanilla')
-          .addEventListener('click', function() {
-            const id = <?= json_encode($planilla_info['id'], JSON_NUMERIC_CHECK) ?>;
-            window.open(
-              'generar_partida_planilla.php?planilla_id=' + id,
-              'PartidaContablePopup',
-              'width=800,height=600,top=100,left=100,' +
-              'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
-            );
-          });
+        document.getElementById('btnPartidaAuto')?.addEventListener('click', async function(){
+          const periodo = <?= json_encode($periodo_mes) ?>;
+          const medio   = document.getElementById('medio_pago').value;
+          const desc    = document.getElementById('desc_partida').value || '';
 
-        // Automática (nuevo)
-        document.getElementById('btnPartidaAuto')
-          .addEventListener('click', async function(){
-            const pid  = <?= json_encode($planilla_info['id'], JSON_NUMERIC_CHECK) ?>;
-            const medio= document.getElementById('medio_pago').value;
-            const desc = document.getElementById('desc_partida').value||'';
+          try {
+            const resp = await fetch('generar_partida_planilla_auto.php', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({
+                modo: 'mes',
+                periodo: periodo,       // YYYY-MM
+                medio_pago: medio,
+                descripcion: desc
+              })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.message || 'Error desconocido');
 
-            try{
-              const resp = await fetch('generar_partida_planilla_auto.php', {
-                method: 'POST',
-                headers: { 'Content-Type':'application/json' },
-                body: JSON.stringify({
-                  planilla_id: pid,
-                  medio_pago: medio,
-                  descripcion: desc
-                })
-              });
-              const data = await resp.json();
-              if (!data.success) throw new Error(data.message||'Error desconocido');
-
-              alert('Partida creada (#'+data.partida_id+').');
-              document.getElementById('exportBtnContainer').innerHTML =
-                `<a href="exportar_partida_planilla_pdf.php?partida_id=${data.partida_id}&planilla_id=${pid}"
-                   target="_blank" class="btn btn-danger">📄 Exportar Partida PDF (#${data.partida_id})</a>`;
-            }catch(e){
-              alert('No se pudo generar: '+ e.message);
-            }
-          });
+            alert('Partida creada (#'+data.partida_id+').');
+            document.getElementById('exportBtnContainer').innerHTML =
+              `<a href="exportar_partida_planilla_pdf.php?partida_id=${data.partida_id}"
+                  target="_blank" class="btn btn-danger">📄 Exportar Partida PDF (#${data.partida_id})</a>`;
+          } catch(e) {
+            alert('No se pudo generar: ' + e.message);
+          }
+        });
       </script>
+
+    <?php elseif ($periodo_mes !== ''): ?>
+      <div class="alert alert-warning">No hay planillas registradas en <?= htmlspecialchars($periodo_mes) ?>.</div>
     <?php endif; ?>
   </div>
 </main>

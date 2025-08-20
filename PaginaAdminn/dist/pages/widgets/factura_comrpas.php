@@ -2,7 +2,7 @@
 // factura_compras.php
 include 'conexion.php';
 
-// 1) Si se pasa compra_id por GET, cargamos esa compra interna
+// Cargar compra si viene compra_id
 $compra_info = [];
 if (isset($_GET['compra_id'])) {
     $cid = (int)$_GET['compra_id'];
@@ -12,10 +12,6 @@ if (isset($_GET['compra_id'])) {
     $compra_info = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 }
-
-
-
-
 ?>
 
 
@@ -303,29 +299,21 @@ if (isset($_GET['compra_id'])) {
       
 <main class="app-main p-4">
   <div class="container">
-
-    <!-- Logo -->
     <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png"
-           alt="Logo Rabinalarts"
+      <img src="../../../dist/assets/img/rabi.png" alt="Logo Rabinalarts"
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
     <h1 class="mb-4">Generar Factura de Compra Interna</h1>
 
-    <!-- Encabezado de empresa -->
     <div class="mb-3">
       <h4 class="fw-bold">RABINALARTS</h4>
       <p>
-        <strong>Fecha:</strong> <?= date("Y-m-d") ?>
-        | <strong>Folio:</strong>
-        <?= isset($compra_info['id'])
-            ? str_pad($compra_info['id'], 5, "0", STR_PAD_LEFT)
-            : '----' ?>
+        <strong>Fecha:</strong> <?= date("Y-m-d") ?> |
+        <strong>Folio:</strong> <?= isset($compra_info['id']) ? str_pad($compra_info['id'], 5, "0", STR_PAD_LEFT) : '----' ?>
       </p>
     </div>
 
-    <!-- Buscar compra -->
     <form method="GET" class="row g-3 mb-4">
       <div class="col-md-3">
         <label for="compra_id" class="form-label">ID Compra Interna</label>
@@ -340,9 +328,7 @@ if (isset($_GET['compra_id'])) {
       <div class="mb-4">
         <h5>Detalles de la Compra</h5>
         <table class="table table-bordered bg-light">
-          <thead class="table-secondary">
-            <tr><th>Campo</th><th>Valor</th></tr>
-          </thead>
+          <thead class="table-secondary"><tr><th>Campo</th><th>Valor</th></tr></thead>
           <tbody>
             <tr><td>ID</td><td><?= $compra_info['id'] ?></td></tr>
             <tr><td>Forma de Pago</td><td><?= htmlspecialchars($compra_info['forma_pago']) ?></td></tr>
@@ -358,34 +344,27 @@ if (isset($_GET['compra_id'])) {
           </tbody>
         </table>
 
-        <!-- Acciones -->
         <div class="d-flex gap-2">
-          <a
-            href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
-            target="_blank"
-            class="btn btn-outline-danger"
-          >
+          <a href="exportar_compra_interna_pdf.php?compra_id=<?= $compra_info['id'] ?>"
+             target="_blank" class="btn btn-outline-danger">
             <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
           </a>
 
-          <!-- Generación automática -->
           <button type="button" id="btnAutoPartida" class="btn btn-success">
             <i class="bi bi-lightning-charge"></i> Generar Partida Automática
           </button>
 
-          <!-- Editor manual -->
           <button type="button" id="btnPartidaContable" class="btn btn-outline-primary">
             <i class="bi bi-journal-text"></i> Abrir Editor Manual
           </button>
         </div>
 
-        <!-- Contenedor para botón de export tras generar partida -->
         <div id="exportBtnContainer" class="mt-2"></div>
       </div>
 
       <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
       <script>
-        // Editor manual (flujo anterior)
+        // Editor manual
         document.getElementById('btnPartidaContable').addEventListener('click', function() {
           const id = <?= json_encode($compra_info['id'], JSON_NUMERIC_CHECK) ?>;
           window.open(
@@ -407,20 +386,13 @@ if (isset($_GET['compra_id'])) {
                 descripcion: 'Partida automática de compra interna'
               })
             });
-
             const data = await resp.json();
             if (!data.success) throw new Error(data.message || 'Error desconocido');
 
             Swal.fire({icon:'success', title:'Partida creada', timer:1400, showConfirmButton:false});
-
-            // habilita export con partida_id
-            const link = `
-              <a href="exportar_compra_interna_pdf.php?partida_id=${data.partida_id}&compra_id=${id}"
-                 target="_blank" class="btn btn-danger mt-2">
-                 📄 Exportar PDF (partida #${data.partida_id})
-              </a>`;
-            document.getElementById('exportBtnContainer').innerHTML = link;
-
+            document.getElementById('exportBtnContainer').innerHTML =
+              `<a href="exportar_compra_interna_pdf.php?partida_id=${data.partida_id}&compra_id=${id}"
+                  target="_blank" class="btn btn-danger mt-2">📄 Exportar PDF (partida #${data.partida_id})</a>`;
           } catch (e) {
             Swal.fire({icon:'error', title:'No se pudo generar', text: e.message});
           }
@@ -429,7 +401,6 @@ if (isset($_GET['compra_id'])) {
     <?php endif; ?>
   </div>
 </main>
-
 
 
 
