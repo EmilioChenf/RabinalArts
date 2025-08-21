@@ -1,41 +1,140 @@
 <?php
-// venta_factura.php
+// libro_diario.php (o reemplaza tu venta_factura.php si es el Libro Diario)
 session_start();
 include 'conexion.php';
-// 1) Parámetros de filtro
-$from = $_GET['from'] ?? date('Y-m-01');
-$to   = $_GET['to']   ?? date('Y-m-d');
 
-// Escapamos para seguridad
+function validDate($d){ return preg_match('/^\d{4}-\d{2}-\d{2}$/',$d)?$d:date('Y-m-d'); }
+function money($n){ return number_format((float)$n,2); }
+function ymFirst($ym){ return $ym.'-01 00:00:00'; }
+function nextYmFirst($ym){ return date('Y-m-01 00:00:00', strtotime("$ym-01 +1 month")); }
+
+// --- config de filtros
+$from = validDate($_GET['from'] ?? date('Y-m-01'));
+$to   = validDate($_GET['to']   ?? date('Y-m-d'));
 $from_sql = $conn->real_escape_string($from);
 $to_sql   = $conn->real_escape_string($to);
 
-// 2) Partidas de Compras
-$sql_comp = "
-  SELECT id, descripcion, created_at AS fecha
-  FROM partidas_contables_compras
-  WHERE DATE(created_at) BETWEEN '$from_sql' AND '$to_sql'
-  ORDER BY created_at DESC
-";
-$res_comp = $conn->query($sql_comp);
-if (! $res_comp) {
-    die("Error en consulta de partidas de compras: " . $conn->error);
+// --- helpers para cuentas de saldo inicial
+function hayFlagMostrarSaldo($conn){
+  $q = $conn->query("SHOW COLUMNS FROM cuentas_contables LIKE 'mostrar_saldo_inicial'");
+  return $q && $q->num_rows>0;
+}
+function cuentaPorSlug($conn,$slug){
+  $st=$conn->prepare("SELECT c.id,c.nombre FROM param_cuentas p JOIN cuentas_contables c ON c.id=p.cuenta_id WHERE p.slug=? LIMIT 1");
+  $st->bind_param('s',$slug); $st->execute();
+  $r=$st->get_result()->fetch_assoc(); $st->close();
+  return $r?:null;
+}
+function cuentasSaldoInicial($conn){
+  $out=[];
+  if (hayFlagMostrarSaldo($conn)){
+    $q=$conn->query("SELECT id,nombre FROM cuentas_contables WHERE mostrar_saldo_inicial=1 ORDER BY nombre");
+    while($r=$q->fetch_assoc()) $out[]=['id'=>(int)$r['id'],'nombre'=>$r['nombre']];
+    if(!empty($out)) return $out;
+  }
+  // fallback: solo Caja del param_cuentas
+  if ($c=cuentaPorSlug($conn,'caja')) $out[]=['id'=>(int)$c['id'],'nombre'=>$c['nombre']];
+  return $out;
+}
+function saldoInicial($conn,$cuentaId,$inicioMesTS){
+  $st=$conn->prepare("SELECT COALESCE(SUM(debe-haber),0) s FROM libro_mayor WHERE cuenta_id=? AND fecha < ?");
+  $st->bind_param('is',$cuentaId,$inicioMesTS);
+  $st->execute(); $s=(float)$st->get_result()->fetch_assoc()['s']; $st->close(); return $s;
 }
 
-// 3) Partidas de Ventas
-$sql_vent = "
-  SELECT id, cliente_id, descripcion, fecha
-  FROM partidas_contables_ventas
-  WHERE DATE(fecha) BETWEEN '$from_sql' AND '$to_sql'
-  ORDER BY fecha DESC
+// --- meses cubiertos
+$meses=[]; $cur=new DateTime($from); $cur->modify('first day of this month');
+$end=new DateTime($to); $end->modify('first day of next month');
+while($cur<$end){ $ym=$cur->format('Y-m'); $meses[]=['ym'=>$ym,'ini'=>ymFirst($ym),'ini_next'=>nextYmFirst($ym)]; $cur->modify('+1 month'); }
+
+// --- partidas reales (compras, ventas, planilla, generales + aperturas)
+$sql = "
+  SELECT 'compras' origen, p.id partida_id, p.created_at fecha, p.descripcion,
+         d.cuenta_id, c.nombre cuenta, d.debe, d.haber
+  FROM partidas_contables_compras p
+  JOIN partidas_contables_compras_detalle d ON d.partida_id=p.id
+  JOIN cuentas_contables c ON c.id=d.cuenta_id
+  WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
+
+  UNION ALL
+  SELECT 'ventas', p.id, p.fecha, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+  FROM partidas_contables_ventas p
+  JOIN partida_detalle_ventas d ON d.partida_id=p.id
+  JOIN cuentas_contables c ON c.id=d.cuenta_id
+  WHERE DATE(p.fecha) BETWEEN '$from_sql' AND '$to_sql'
+
+  UNION ALL
+  SELECT 'planilla', p.id, p.created_at, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+  FROM partidas_contables_planilla p
+  JOIN partida_detalle_planilla d ON d.partida_id=p.id
+  JOIN cuentas_contables c ON c.id=d.cuenta_id
+  WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
+
+  UNION ALL
+  SELECT IF(p.tipo='apertura','apertura','general') origen, p.id, p.fecha, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+  FROM partidas_contables p
+  JOIN partida_detalle d ON d.partida_id=p.id
+  JOIN cuentas_contables c ON c.id=d.cuenta_id
+  WHERE DATE(p.fecha) BETWEEN '$from_sql' AND '$to_sql'
 ";
-$res_vent = $conn->query($sql_vent);
-if (! $res_vent) {
-    die("Error en consulta de partidas de ventas: " . $conn->error);
+$sql .= " ORDER BY fecha, origen, partida_id";
+$res = $conn->query($sql) or die("Error diario: ".$conn->error);
+
+// --- agrupar por mes y partida
+$realesPorMes=[]; $hayAperturaMes=[];
+while($r=$res->fetch_assoc()){
+  $ym = date('Y-m', strtotime($r['fecha']));
+  $key = $r['origen'].':'.$r['partida_id'];
+  if (!isset($realesPorMes[$ym][$key])){
+    $realesPorMes[$ym][$key]=['fecha'=>$r['fecha'],'descripcion'=>$r['descripcion'],'origen'=>$r['origen'],'lines'=>[]];
+  }
+  $realesPorMes[$ym][$key]['lines'][]=[
+    'cuenta_id'=>(int)$r['cuenta_id'],
+    'cuenta'=>$r['cuenta'],
+    'debe'=>(float)$r['debe'],
+    'haber'=>(float)$r['haber'],
+  ];
+  if ($r['origen']==='apertura') $hayAperturaMes[$ym]=true;
+}
+
+// --- construir diario final (insertando saldo inicial si NO hay apertura)
+$cuentasSaldo = cuentasSaldoInicial($conn);
+$diario=[];
+
+foreach($meses as $m){
+  $ym = $m['ym'];
+  $partidas=[];
+  $inicioMes = $m['ini'];
+
+  if (empty($hayAperturaMes[$ym])) {
+    // Insertar renglones de “saldo inicial” por cuenta (presentación)
+    foreach($cuentasSaldo as $cta){
+      $si = saldoInicial($conn, $cta['id'], $inicioMes);
+      if (abs($si) < 0.005) continue;
+      $debe  = $si>=0 ? $si : 0;
+      $haber = $si<0  ? -$si: 0;
+      $partidas['saldo:'.$ym.':'.$cta['id']] = [
+        'fecha'=>$inicioMes,
+        'descripcion'=>'Saldo inicial de '.$cta['nombre'],
+        'origen'=>'saldo',
+        'lines'=>[[ 'cuenta_id'=>$cta['id'], 'cuenta'=>$cta['nombre'], 'debe'=>$debe, 'haber'=>$haber ]]
+      ];
+    }
+  }
+
+  if (!empty($realesPorMes[$ym])){
+    uasort($realesPorMes[$ym], function($a,$b){
+      $ta=strtotime($a['fecha']); $tb=strtotime($b['fecha']); return $ta<=>$tb;
+    });
+    foreach($realesPorMes[$ym] as $k=>$p){ $partidas[$k]=$p; }
+  }
+
+  if (!empty($partidas)) $diario[$ym]=$partidas;
 }
 ?>
-
-
 
 
 <!doctype html>
@@ -316,331 +415,116 @@ if (! $res_vent) {
       <!--begin::App Main-->
 
 <main class="app-main p-4">
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Libro Diario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body{ font-family:'Times New Roman',serif; font-size:12px; }
+    .libro-diario{ border:2px solid #000; background:#fff; margin-top:20px; }
+    .libro-header{ text-align:center; padding:15px; border-bottom:2px solid #000; font-weight:bold; background:#f8f9fa; }
+    .partida-row{ border-bottom:1px solid #000; min-height:40px; display:flex; }
+    .partida-number{ border-right:2px solid #000; width:60px; padding:8px 5px; text-align:center; font-weight:bold; background:#f8f9fa; display:flex; align-items:flex-start; justify-content:center; }
+    .partida-fecha-header{ font-weight:bold; text-align:center; margin-bottom:8px; font-size:12px; }
+    .partida-content{ padding:8px 10px; flex:1; }
+    .cuenta-row{ margin:2px 0; display:flex; align-items:center; }
+    .cuenta-numero{ display:inline-block; width:20px; text-align:center; font-weight:bold; margin-right:10px; }
+    .cuenta-nombre{ text-transform:uppercase; font-weight:bold; }
+    .cuenta-descripcion{ margin:8px 0; margin-left:20px; font-size:11px; font-style:italic; color:#666; line-height:1.3; font-weight:bold; }
+    .amounts-column, .amounts-column-haber{ width:120px; border-left:1px solid #000; padding:8px 5px; text-align:right; }
+    .amount-cell{ margin:2px 0; min-height:18px; display:flex; justify-content:space-between; align-items:center; }
+    .currency{ margin-right:5px; }
+    .final-totals{ border:1px solid #000; background:#e9ecef; text-align:right; font-weight:bold; font-size:12px; padding:5px; margin-top:5px; }
+  </style>
+</head>
+<body class="p-4">
   <div class="container-fluid">
-        <!-- Logo en la esquina superior -->
-    <div style="position: relative;">
-      <img src="../../../dist/assets/img/rabi.png" 
-           alt="Logo Rabinalarts" 
-           style="position: absolute; top: 0; right: 0; height: 60px;">
+    <div style="position:relative;">
+      <img src="../../../dist/assets/img/rabi.png" alt="Logo" style="position:absolute;top:0;right:0;height:60px;">
     </div>
-
     <h1 class="mb-4">Gestión de Movimientos Contables</h1>
 
-    <!-- Filtro de fechas -->
     <form method="GET" class="row g-3 align-items-end mb-4">
       <div class="col-md-3">
-        <label for="from" class="form-label">Desde</label>
-        <input
-          type="date"
-          id="from"
-          name="from"
-          class="form-control"
-          value="<?= htmlspecialchars($from) ?>"
-        >
+        <label class="form-label">Desde</label>
+        <input type="date" name="from" class="form-control" value="<?= htmlspecialchars($from) ?>">
       </div>
       <div class="col-md-3">
-        <label for="to" class="form-label">Hasta</label>
-        <input
-          type="date"
-          id="to"
-          name="to"
-          class="form-control"
-          value="<?= htmlspecialchars($to) ?>"
-        >
+        <label class="form-label">Hasta</label>
+        <input type="date" name="to" class="form-control" value="<?= htmlspecialchars($to) ?>">
       </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">
-          <i class="bi bi-funnel-fill"></i> Filtrar
-        </button>
-      </div>
+      <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel-fill"></i> Filtrar</button></div>
     </form>
 
-    <style>
-        body {
-            font-family: 'Times New Roman', serif;
-            font-size: 12px;
-        }
-        
-        .libro-diario {
-            border: 2px solid #000;
-            background: white;
-            margin-top: 20px;
-        }
-        
-        .libro-header {
-            text-align: center;
-            padding: 15px;
-            border-bottom: 2px solid #000;
-            font-weight: bold;
-            background-color: #f8f9fa;
-        }
-        
-        .partida-row {
-            border-bottom: 1px solid #000;
-            min-height: 40px;
-            display: flex;
-        }
-        
-        .partida-number {
-            border-right: 2px solid #000;
-            width: 60px;
-            padding: 8px 5px;
-            text-align: center;
-            font-weight: bold;
-            background-color: #f8f9fa;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-        }
-        
-        .partida-fecha-header {
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
-        
-        .partida-content {
-            padding: 8px 10px;
-            flex: 1;
-        }
-        
-        .cuenta-row {
-            margin: 2px 0;
-            display: flex;
-            align-items: center;
-        }
-        
-        .cuenta-numero {
-            display: inline-block;
-            width: 20px;
-            text-align: center;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .cuenta-nombre {
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-        
-        .cuenta-subcuenta {
-            margin-left: 30px;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-        
-        .cuenta-descripcion {
-            margin: 8px 0;
-            margin-left: 20px;
-            font-size: 11px;
-            font-style: italic;
-            color: #666;
-            line-height: 1.3;
-            font-weight: bold;
-        }
-        
-        .amounts-column {
-            width: 120px;
-            border-left: 1px solid #000;
-            padding: 8px 5px;
-            text-align: right;
-        }
-        
-        .amounts-column-haber {
-            width: 120px;
-            border-left: 1px solid #000;
-            padding: 8px 5px;
-            text-align: right;
-        }
-        
-        .amount-cell {
-            margin: 2px 0;
-            min-height: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .currency {
-            margin-right: 5px;
-        }
-        
-        .amount-debe {
-            color: #000;
-        }
-        
-        .amount-haber {
-            color: #000;
-            margin-left: 20px;
-        }
-        
-        .final-totals {
-            border: 1px solid #000;
-            background-color: #e9ecef;
-            text-align: right;
-            font-weight: bold;
-            font-size: 12px;
-            padding: 5px;
-            margin-top: 5px;
-        }
-        
-        .partida-totals {
-            display: none;
-        }
-    </style>
-
-    <?php
-    // Tu código PHP existente + PLANILLA añadida
-    $sql_diario = "
-      SELECT p.id AS partida_id, p.created_at AS fecha, p.descripcion,
-             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
-      FROM partidas_contables_compras p
-      JOIN partidas_contables_compras_detalle d ON d.partida_id = p.id
-      JOIN cuentas_contables c ON c.id = d.cuenta_id
-      WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
-
-      UNION ALL
-
-      SELECT p.id AS partida_id, p.fecha AS fecha, p.descripcion,
-             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
-      FROM partidas_contables_ventas p
-      JOIN partida_detalle_ventas d ON d.partida_id = p.id
-      JOIN cuentas_contables c ON c.id = d.cuenta_id
-      WHERE DATE(p.fecha) BETWEEN '$from_sql' AND '$to_sql'
-
-      UNION ALL
-
-      SELECT p.id AS partida_id, p.created_at AS fecha, p.descripcion,
-             d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
-      FROM partidas_contables_planilla p
-      JOIN partida_detalle_planilla d ON d.partida_id = p.id
-      JOIN cuentas_contables c ON c.id = d.cuenta_id
-      WHERE DATE(p.created_at) BETWEEN '$from_sql' AND '$to_sql'
-
-      ORDER BY fecha, partida_id
-    ";
-    $res_diario = $conn->query($sql_diario);
-    if (! $res_diario) {
-      die("Error al obtener Libro Diario: " . $conn->error);
-    }
-
-    $libro = [];
-    while ($row = $res_diario->fetch_assoc()) {
-      $pid = $row['partida_id'];
-      if (!isset($libro[$pid])) {
-        $libro[$pid] = [
-          'fecha'       => $row['fecha'],
-          'descripcion' => $row['descripcion'],
-          'lines'       => []
-        ];
-      }
-      $libro[$pid]['lines'][] = $row;
-    }
-    ?>
-
-    <?php if (empty($libro)): ?>
+    <?php if (empty($diario)): ?>
       <div class="alert alert-info">No hay partidas en este rango de fechas.</div>
     <?php else: ?>
-      
-      <!-- Libro Diario -->
       <div class="libro-diario">
-        <!-- Header del libro -->
         <div class="libro-header">
-          <div style="font-size: 14px; font-weight: bold;">LIBRO DIARIO</div>
-          <div style="font-size: 12px;">RabinalArts", del <?= date('d/m/Y', strtotime($from)) ?> al <?= date('d/m/Y', strtotime($to)) ?></div>
-          <div style="font-size: 11px;">(Cifras en Quetzales)</div>
+          <div style="font-size:14px;font-weight:bold;">LIBRO DIARIO</div>
+          <div style="font-size:12px;">RabinalArts, del <?= date('d/m/Y', strtotime($from)) ?> al <?= date('d/m/Y', strtotime($to)) ?></div>
+          <div style="font-size:11px;">(Cifras en Quetzales)</div>
         </div>
 
-        <?php $contador = 1; ?>
-        <?php foreach ($libro as $pid => $section): ?>
-          <?php
-            $sumDebe  = array_sum(array_column($section['lines'], 'debe'));
-            $sumHaber = array_sum(array_column($section['lines'], 'haber'));
-            $lineCount = count($section['lines']);
-          ?>
-          
-          <!-- Partida -->
+        <?php
+        $contador=1;
+        foreach ($meses as $mInfo):
+          $ym = $mInfo['ym'];
+          if (empty($diario[$ym])) continue;
+
+          echo '<div class="p-2" style="border-bottom:2px solid #000;background:#f5f5f5;font-weight:bold;">'.strftime('%B %Y', strtotime($ym.'-01')).'</div>';
+
+          foreach ($diario[$ym] as $section):
+            $sumDebe=0;$sumHaber=0; foreach($section['lines'] as $ln){ $sumDebe+=$ln['debe']; $sumHaber+=$ln['haber']; }
+        ?>
           <div class="partida-row">
             <div class="partida-number">Pda<?= $contador ?></div>
             <div class="partida-content">
-              <!-- Fecha arriba de las cuentas -->
               <div class="partida-fecha-header"><?= date('d/m/Y', strtotime($section['fecha'])) ?></div>
-              
-              <?php $lineNum = 1; ?>
-              <?php foreach ($section['lines'] as $line): ?>
+              <?php $i=1; foreach($section['lines'] as $ln): ?>
                 <div class="cuenta-row">
-                  <span class="cuenta-numero"><?= $lineNum ?></span>
-                  <span class="cuenta-nombre"><?= htmlspecialchars($line['cuenta']) ?></span>
+                  <span class="cuenta-numero"><?= $i ?></span>
+                  <span class="cuenta-nombre"><?= htmlspecialchars($ln['cuenta']) ?></span>
                 </div>
-                <?php $lineNum++; ?>
-              <?php endforeach; ?>
-              
-              <!-- Descripción con totales -->
-              <div class="cuenta-descripcion">
-                <?= htmlspecialchars($section['descripcion']) ?>:
-              </div>
+              <?php $i++; endforeach; ?>
+              <div class="cuenta-descripcion"><?= htmlspecialchars($section['descripcion']) ?>:</div>
             </div>
-            
-            <!-- Columna DEBE -->
             <div class="amounts-column">
-              <!-- Espacios vacíos para la fecha -->
-              <div class="amount-cell" style="height: 20px;"></div>
-              
-              <?php foreach ($section['lines'] as $line): ?>
+              <div class="amount-cell" style="height:20px;"></div>
+              <?php foreach($section['lines'] as $ln): ?>
                 <div class="amount-cell">
-                  <?php if ($line['debe'] > 0): ?>
-                    <span class="currency">Q</span>
-                    <span><?= number_format($line['debe'], 2) ?></span>
-                  <?php else: ?>
-                    <span></span>
-                    <span></span>
-                  <?php endif; ?>
+                  <?php if ($ln['debe']>0): ?><span class="currency">Q</span><span><?= money($ln['debe']) ?></span><?php else:?><span></span><span></span><?php endif; ?>
                 </div>
               <?php endforeach; ?>
-              
-              <!-- Total en la línea de descripción -->
-              <div class="final-totals">
-                Q <?= number_format($sumDebe, 2) ?>
-              </div>
+              <div class="final-totals">Q <?= money($sumDebe) ?></div>
             </div>
-            
-            <!-- Columna HABER -->
             <div class="amounts-column-haber">
-              <!-- Espacios vacíos para la fecha -->
-              <div class="amount-cell" style="height: 20px;"></div>
-              
-              <?php foreach ($section['lines'] as $line): ?>
+              <div class="amount-cell" style="height:20px;"></div>
+              <?php foreach($section['lines'] as $ln): ?>
                 <div class="amount-cell">
-                  <?php if ($line['haber'] > 0): ?>
-                    <span class="currency">Q</span>
-                    <span><?= number_format($line['haber'], 2) ?></span>
-                  <?php else: ?>
-                    <span></span>
-                    <span></span>
-                  <?php endif; ?>
+                  <?php if ($ln['haber']>0): ?><span class="currency">Q</span><span><?= money($ln['haber']) ?></span><?php else:?><span></span><span></span><?php endif; ?>
                 </div>
               <?php endforeach; ?>
-              
-              <!-- Total en la línea de descripción -->
-              <div class="final-totals">
-                Q <?= number_format($sumHaber, 2) ?>
-              </div>
+              <div class="final-totals">Q <?= money($sumHaber) ?></div>
             </div>
           </div>
-          
-          <?php $contador++; ?>
-        <?php endforeach; ?>
+        <?php
+          $contador++;
+          endforeach;
+        endforeach;
+        ?>
       </div>
     <?php endif; ?>
-      <a
-        href="exportar_libro_diario_pdf.php?from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>"
-        class="btn btn-danger"
-        target="_blank"
-      >
-        <i class="bi bi-file-earmark-pdf"></i> Exportar Libro Diario (PDF)
-      </a>
+
+    <a href="exportar_libro_diario_pdf.php?from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>" class="btn btn-danger mt-3" target="_blank">
+      <i class="bi bi-file-earmark-pdf"></i> Exportar Libro Diario (PDF)
+    </a>
   </div>
+</body>
+</html>
 </main>
 
 

@@ -104,9 +104,9 @@ function generarPartidaCompraDesdeInterna(
 
   $conn->begin_transaction();
   try {
+    // 🔧 FIX: dos placeholders (?, ?) ⇒ dos variables con "is"
     $stmt = $conn->prepare("INSERT INTO partidas_contables_compras (compra_id, descripcion, created_at) VALUES (?, ?, NOW())");
-    $stmt->bind_param("i", $compraId);
-    $stmt->send_long_data(1, $desc);
+    $stmt->bind_param("is", $compraId, $desc);
     if (!$stmt->execute()) throw new Exception('No se pudo crear la partida (compras): '.$conn->error);
     $partidaId = $stmt->insert_id;
     $stmt->close();
@@ -245,9 +245,9 @@ function generarPartidaPlanilla(
 
   $conn->begin_transaction();
   try {
+    // 🔧 FIX: dos placeholders (?, ?) ⇒ dos variables con "is"
     $stmt = $conn->prepare("INSERT INTO partidas_contables_planilla (planilla_id, descripcion, created_at) VALUES (?, ?, NOW())");
-    $stmt->bind_param("i", $planillaId);
-    $stmt->send_long_data(1, $desc);
+    $stmt->bind_param("is", $planillaId, $desc);
     if (!$stmt->execute()) throw new Exception('No se pudo crear la partida (planilla): '.$conn->error);
     $partidaId = $stmt->insert_id;
     $stmt->close();

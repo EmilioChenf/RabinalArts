@@ -1,9 +1,8 @@
-
 <?php
 // gestion_de_cuentas.php
 include 'conexion.php';
 
-// 1) PROCESAR BORRADO
+// 1) BORRAR CUENTA
 if (isset($_GET['delete'])) {
     $del_id = intval($_GET['delete']);
     $stmt = $conn->prepare("DELETE FROM cuentas_contables WHERE id = ?");
@@ -13,37 +12,35 @@ if (isset($_GET['delete'])) {
     exit;
 }
 
-// 2) PROCESAR CREAR / ACTUALIZAR
+// 2) CREAR / ACTUALIZAR CUENTA (con las nuevas banderas)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
     $id            = intval($_POST['id'] ?? 0);
     $nombre        = trim($_POST['nombre']);
-    $egr           = isset($_POST['nominal_egreso']) ? 1 : 0;
-    $ing           = isset($_POST['nominal_ingreso']) ? 1 : 0;
-    $deb           = isset($_POST['balance_deudor']) ? 1 : 0;
-    $acre          = isset($_POST['balance_acreedor']) ? 1 : 0;
+    $perdida       = isset($_POST['es_perdida'])  ? 1 : 0; // Pérdida   (antes nominal_egreso)
+    $ganancia      = isset($_POST['es_ganancia']) ? 1 : 0; // Ganancia  (antes nominal_ingreso)
+    $activo        = isset($_POST['es_activo'])   ? 1 : 0; // Activo    (antes balance_deudor)
+    $pasivo        = isset($_POST['es_pasivo'])   ? 1 : 0; // Pasivo    (antes balance_acreedor)
     $clasificacion = trim($_POST['clasificacion']);
 
     if ($id > 0) {
-        // actualizar
         $stmt = $conn->prepare("
-          UPDATE cuentas_contables 
-            SET nombre=?, nominal_egreso=?, nominal_ingreso=?, balance_deudor=?, balance_acreedor=?, clasificacion=?
-          WHERE id=?
+          UPDATE cuentas_contables
+             SET nombre = ?, es_perdida = ?, es_ganancia = ?, es_activo = ?, es_pasivo = ?, clasificacion = ?
+           WHERE id = ?
         ");
         $stmt->bind_param("siiiisi",
-            $nombre, $egr, $ing, $deb, $acre, $clasificacion, $id
+            $nombre, $perdida, $ganancia, $activo, $pasivo, $clasificacion, $id
         );
         $stmt->execute();
         $msg = 'updated';
     } else {
-        // insertar
         $stmt = $conn->prepare("
           INSERT INTO cuentas_contables
-            (nombre, nominal_egreso, nominal_ingreso, balance_deudor, balance_acreedor, clasificacion)
+            (nombre, es_perdida, es_ganancia, es_activo, es_pasivo, clasificacion)
           VALUES (?,?,?,?,?,?)
         ");
         $stmt->bind_param("siiiis",
-            $nombre, $egr, $ing, $deb, $acre, $clasificacion
+            $nombre, $perdida, $ganancia, $activo, $pasivo, $clasificacion
         );
         $stmt->execute();
         $msg = 'created';
@@ -52,12 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_account'])) {
     exit;
 }
 
-// 3) SI VIENE ?edit=ID, traemos para prefilling
+// 3) PREFILL PARA EDITAR
 $edit = null;
 if (isset($_GET['edit'])) {
     $eid = intval($_GET['edit']);
     $res = $conn->query("SELECT * FROM cuentas_contables WHERE id = $eid");
-    $edit = $res->fetch_assoc();
+    $edit = $res ? $res->fetch_assoc() : null;
 }
 ?>
 <!doctype html>
@@ -357,7 +354,13 @@ if (isset($_GET['edit'])) {
            style="position: absolute; top: 0; right: 0; height: 60px;">
     </div>
 
-    <h3 class="mb-4">Gestión de Cuentas Contables</h3>
+    <!-- Título + botón (abre modal de Partida Inicial) -->
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <h3 class="m-0">Gestión de Cuentas Contables</h3>
+      <button class="btn btn-dark ms-2" data-bs-toggle="modal" data-bs-target="#modalPartidaInicial">
+        <i class="bi bi-lightning-charge"></i> Crear Partida Inicial
+      </button>
+    </div>
 
     <!-- SweetAlert según acción -->
     <?php if (isset($_GET['msg'])): ?>
@@ -369,12 +372,7 @@ if (isset($_GET['edit'])) {
           updated: '¡Cuenta actualizada!',
           deleted: '¡Cuenta eliminada!'
         };
-        Swal.fire({
-          icon: 'success',
-          title: titles[m] || '¡Hecho!',
-          timer: 1500,
-          showConfirmButton: false
-        });
+        Swal.fire({ icon:'success', title: titles[m] || '¡Hecho!', timer: 1500, showConfirmButton: false });
       });
     </script>
     <?php endif; ?>
@@ -382,38 +380,48 @@ if (isset($_GET['edit'])) {
     <!-- FORMULARIO CREAR / EDITAR -->
     <form method="POST" class="row g-3 border p-4 rounded bg-light mb-5">
       <input type="hidden" name="id" value="<?= isset($edit['id']) ? (int)$edit['id'] : 0 ?>">
-      <div class="col-md-4">
+
+      <div class="col-md-6">
         <label class="form-label">Nombre de cuenta</label>
         <input type="text" name="nombre" required
                class="form-control"
                value="<?= htmlspecialchars($edit['nombre'] ?? '', ENT_QUOTES) ?>">
       </div>
-      <div class="col-md-2 form-check">
-        <input type="checkbox" class="form-check-input" id="egr" name="nominal_egreso"
-               <?= (!empty($edit) && !empty($edit['nominal_egreso'])) ? 'checked' : '' ?>>
-        <label for="egr" class="form-check-label">Egreso</label>
-      </div>
-      <div class="col-md-2 form-check">
-        <input type="checkbox" class="form-check-input" id="ing" name="nominal_ingreso"
-               <?= (!empty($edit) && !empty($edit['nominal_ingreso'])) ? 'checked' : '' ?>>
-        <label for="ing" class="form-check-label">Ingreso</label>
-      </div>
-      <div class="col-md-2 form-check">
-        <input type="checkbox" class="form-check-input" id="deb" name="balance_deudor"
-               <?= (!empty($edit) && !empty($edit['balance_deudor'])) ? 'checked' : '' ?>>
-        <label for="deb" class="form-check-label">Deudor</label>
-      </div>
-      <div class="col-md-2 form-check">
-        <input type="checkbox" class="form-check-input" id="acre" name="balance_acreedor"
-               <?= (!empty($edit) && !empty($edit['balance_acreedor'])) ? 'checked' : '' ?>>
-        <label for="acre" class="form-check-label">Acreedor</label>
-      </div>
-      <div class="col-md-4">
+
+      <div class="col-md-6">
         <label class="form-label">Clasificación</label>
         <input type="text" name="clasificacion" required
                class="form-control"
                value="<?= htmlspecialchars($edit['clasificacion'] ?? '', ENT_QUOTES) ?>">
       </div>
+
+      <!-- Orden requerido: Pérdida - Ganancia - Activo - Pasivo -->
+      <div class="col-12 d-flex flex-wrap gap-4">
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="perdida" name="es_perdida"
+                 <?= (!empty($edit) && !empty($edit['es_perdida'])) ? 'checked' : '' ?>>
+          <label for="perdida" class="form-check-label"><strong>Pérdida</strong></label>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="ganancia" name="es_ganancia"
+                 <?= (!empty($edit) && !empty($edit['es_ganancia'])) ? 'checked' : '' ?>>
+          <label for="ganancia" class="form-check-label"><strong>Ganancia</strong></label>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="activo" name="es_activo"
+                 <?= (!empty($edit) && !empty($edit['es_activo'])) ? 'checked' : '' ?>>
+          <label for="activo" class="form-check-label"><strong>Activo</strong></label>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="pasivo" name="es_pasivo"
+                 <?= (!empty($edit) && !empty($edit['es_pasivo'])) ? 'checked' : '' ?>>
+          <label for="pasivo" class="form-check-label"><strong>Pasivo</strong></label>
+        </div>
+      </div>
+
       <div class="col-12 text-end">
         <button name="save_account" type="submit"
                 class="btn btn-<?= !empty($edit) ? 'warning' : 'primary' ?>">
@@ -431,10 +439,10 @@ if (isset($_GET['edit'])) {
         <tr>
           <th>ID</th>
           <th>Nombre</th>
-          <th>Egr.</th>
-          <th>Ing.</th>
-          <th>Deudor</th>
-          <th>Acreedor</th>
+          <th>Pérd.</th>
+          <th>Gan.</th>
+          <th>Activo</th>
+          <th>Pasivo</th>
           <th>Clasificación</th>
           <th style="width:220px">Acciones</th>
         </tr>
@@ -447,10 +455,10 @@ if (isset($_GET['edit'])) {
         <tr>
           <td><?= (int)$row['id'] ?></td>
           <td><?= htmlspecialchars($row['nombre'], ENT_QUOTES) ?></td>
-          <td><?= !empty($row['nominal_egreso']) ? '✔' : '—' ?></td>
-          <td><?= !empty($row['nominal_ingreso']) ? '✔' : '—' ?></td>
-          <td><?= !empty($row['balance_deudor']) ? '✔' : '—' ?></td>
-          <td><?= !empty($row['balance_acreedor']) ? '✔' : '—' ?></td>
+          <td><?= !empty($row['es_perdida'])  ? '✔' : '—' ?></td>
+          <td><?= !empty($row['es_ganancia']) ? '✔' : '—' ?></td>
+          <td><?= !empty($row['es_activo'])   ? '✔' : '—' ?></td>
+          <td><?= !empty($row['es_pasivo'])   ? '✔' : '—' ?></td>
           <td><?= htmlspecialchars($row['clasificacion'], ENT_QUOTES) ?></td>
           <td class="d-flex gap-2">
             <a href="?edit=<?= (int)$row['id'] ?>" class="btn btn-sm btn-warning">✎</a>
@@ -515,6 +523,237 @@ if (isset($_GET['edit'])) {
       });
     }
   </script>
+
+  <!-- Modal: Partida Inicial -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
+
+  <div class="modal fade" id="modalPartidaInicial" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-journal-plus me-2"></i> Partida Inicial (Apertura)
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <?php
+            // Traer cuentas para el selector
+            $cuentasSel = $conn->query("SELECT id, nombre, clasificacion FROM cuentas_contables ORDER BY nombre ASC");
+            $opciones = [];
+            while($c = $cuentasSel->fetch_assoc()){
+              $opciones[] = $c;
+            }
+          ?>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Descripción</label>
+              <input type="text" id="ap_desc" class="form-control" placeholder="Ej.: Partida de apertura al 01/01/2025">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha del asiento</label>
+              <input type="datetime-local" id="ap_fecha" class="form-control"
+                     value="<?= date('Y-m-01')?>T00:00">
+              <div class="form-text">Usa una fecha al inicio del ejercicio para que aparezca de primera en el Libro Diario.</div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-2">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Cuentas al DEBE</label>
+              <select id="ap_selectDebe" class="form-select" multiple>
+                <?php foreach($opciones as $o): ?>
+                  <option value="<?= (int)$o['id'] ?>"
+                          data-nombre="<?= htmlspecialchars($o['nombre'], ENT_QUOTES) ?>"
+                          data-clasificacion="<?= htmlspecialchars($o['clasificacion'], ENT_QUOTES) ?>">
+                    <?= htmlspecialchars($o['nombre']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Cuentas al HABER</label>
+              <select id="ap_selectHaber" class="form-select" multiple>
+                <?php foreach($opciones as $o): ?>
+                  <option value="<?= (int)$o['id'] ?>"
+                          data-nombre="<?= htmlspecialchars($o['nombre'], ENT_QUOTES) ?>"
+                          data-clasificacion="<?= htmlspecialchars($o['clasificacion'], ENT_QUOTES) ?>">
+                    <?= htmlspecialchars($o['nombre']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+
+          <style>
+            .ap-table { border:2px solid #000; }
+            .ap-table th, .ap-table td { border:1px solid #000; padding:8px; vertical-align:middle; }
+            .ap-table thead th { background:#f2f2f2; text-align:center; }
+            .ap-cuenta { text-transform:uppercase; font-weight:600; }
+            .ap-importe { width: 160px; text-align: right; }
+            .ap-readonly { background:#e9ecef!important; color:#666; }
+          </style>
+
+          <table class="table ap-table mt-3" id="ap_tabla">
+            <thead>
+              <tr>
+                <th>Cuenta</th>
+                <th class="ap-importe">Debe</th>
+                <th class="ap-importe">Haber</th>
+              </tr>
+            </thead>
+            <tbody id="ap_tbody"></tbody>
+            <tfoot>
+              <tr>
+                <th class="text-end">TOTALES</th>
+                <th class="text-end"><span id="ap_total_debe">0.00</span></th>
+                <th class="text-end"><span id="ap_total_haber">0.00</span></th>
+              </tr>
+            </tfoot>
+          </table>
+
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button id="ap_btnGuardar" class="btn btn-dark">
+            <i class="bi bi-save2"></i> Guardar Partida Inicial
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- libs -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <script>
+  (function(){
+    function seccionPara(clasif){
+      if(!clasif) return 'otros';
+      const c = clasif.toLowerCase();
+      if (c.includes('pasivo')) return 'pasivo';
+      if (c.includes('patrimonio') || c.includes('capital')) return 'patrimonio';
+      if (c.includes('activo')) return 'activo';
+      return 'otros';
+    }
+    function ordenSeccion(seccion){
+      if (seccion==='activo') return 1;
+      if (seccion==='pasivo') return 2;
+      if (seccion==='patrimonio') return 3;
+      return 4;
+    }
+
+    function reordenarTabla(){
+      let filas = [];
+      $('#ap_tbody tr[data-id]').each(function(){
+        filas.push({
+          orden: ordenSeccion($(this).data('seccion')),
+          el: $(this).detach()
+        });
+      });
+      filas.sort((a,b)=>a.orden-b.orden);
+      filas.forEach(f=>$('#ap_tbody').append(f.el));
+    }
+
+    function recalcular(){
+      let d=0,h=0;
+      $('#ap_tbody .ap-debe').each(function(){ d += parseFloat($(this).val())||0; });
+      $('#ap_tbody .ap-haber').each(function(){ h += parseFloat($(this).val())||0; });
+      $('#ap_total_debe').text(d.toFixed(2));
+      $('#ap_total_haber').text(h.toFixed(2));
+    }
+
+    function bindChange(selId, tipo){
+      $('#'+selId).on('change', function(){
+        const vals = $(this).val()||[];
+        $('#'+selId+' option').each(function(){
+          const id   = this.value;
+          const nom  = $(this).data('nombre');
+          const clas = $(this).data('clasificacion');
+          const sec  = seccionPara(clas);
+          const existe = vals.includes(id);
+          const rowSel = $(`tr[data-id="${id}"][data-tipo="${tipo}"]`);
+
+          if (existe && !rowSel.length){
+            const readonlyDebe = (tipo==='haber') ? 'ap-readonly' : '';
+            const readonlyHab  = (tipo==='debe')  ? 'ap-readonly' : '';
+            const row = $(`
+              <tr data-id="${id}" data-tipo="${tipo}" data-seccion="${sec}">
+                <td class="ap-cuenta">${nom}</td>
+                <td><input type="number" step="0.01" class="form-control ap-debe ap-importe ${readonlyDebe}" ${tipo==='haber'?'readonly':''} value=""></td>
+                <td><input type="number" step="0.01" class="form-control ap-haber ap-importe ${readonlyHab}" ${tipo==='debe'?'readonly':''} value=""></td>
+              </tr>
+            `);
+            $('#ap_tbody').append(row);
+            reordenarTabla();
+          }
+          if (!existe && rowSel.length){
+            rowSel.remove();
+          }
+        });
+        recalcular();
+      });
+    }
+
+    // Inicializa Select2 cuando se abre el modal
+    document.getElementById('modalPartidaInicial')?.addEventListener('shown.bs.modal', () => {
+      $('#ap_selectDebe, #ap_selectHaber').select2({
+        theme:'bootstrap-5',
+        placeholder:'Escribe para buscar...',
+        width:'100%'
+      });
+    });
+
+    bindChange('ap_selectDebe','debe');
+    bindChange('ap_selectHaber','haber');
+    $(document).on('input change keyup', '.ap-debe, .ap-haber', recalcular);
+
+    $('#ap_btnGuardar').on('click', async function(){
+      const desc  = $('#ap_desc').val().trim();
+      const fecha = $('#ap_fecha').val().trim();
+
+      let detalles = [];
+      $('#ap_tbody tr[data-id]').each(function(){
+        const id   = parseInt($(this).data('id'),10);
+        const debe = parseFloat($(this).find('.ap-debe').val())  || 0;
+        const haber= parseFloat($(this).find('.ap-haber').val()) || 0;
+        if (debe>0 || haber>0) detalles.push({cuenta_id:id, debe:debe, haber:haber});
+      });
+
+      const d = parseFloat($('#ap_total_debe').text()) || 0;
+      const h = parseFloat($('#ap_total_haber').text()) || 0;
+
+      if (!desc) return Swal.fire({icon:'error', title:'Falta descripción'});
+      if (Math.abs(d-h) > 0.005) return Swal.fire({icon:'error', title:'Debe debe igualar a Haber'});
+      if (detalles.length===0) return Swal.fire({icon:'error', title:'Agrega al menos una cuenta con importe'});
+
+      try {
+        const resp = await fetch('guardar_partida_inicial.php', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ descripcion: desc, fecha: fecha, detalles: detalles })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message||'Error desconocido');
+
+        await Swal.fire({icon:'success', title:'Partida de apertura creada', timer:1300, showConfirmButton:false});
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalPartidaInicial'));
+        modal?.hide();
+        $('#ap_desc').val('');
+        $('#ap_selectDebe').val(null).trigger('change');
+        $('#ap_selectHaber').val(null).trigger('change');
+        $('#ap_tbody').empty();
+        recalcular();
+      } catch (e) {
+        Swal.fire({icon:'error', title:'No se pudo guardar', text:e.message});
+      }
+    });
+  })();
+  </script>
+
 </main>
 
 
