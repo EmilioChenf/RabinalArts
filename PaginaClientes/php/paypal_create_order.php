@@ -1,36 +1,41 @@
 <?php
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
-session_start();
 header('Content-Type: application/json; charset=utf-8');
+ini_set('display_errors', 0);
+error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE);
 
-require_once __DIR__ . '/paypal_helpers.php';
+require __DIR__ . '/config.php';
+require __DIR__ . '/paypal_helpers.php';
 
-$data      = json_decode(file_get_contents('php://input'), true);
-$productos = $data['carrito'] ?? [];
+// Cuerpo desde el fetch del frontend
+$input = json_decode(file_get_contents('php://input'), true);
+$carrito = $input['carrito'] ?? [];
 
-if (empty($productos)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Carrito vacío']);
-    exit;
+if (!$carrito || !is_array($carrito)) {
+  echo json_encode(['error' => 'Carrito vacío']);
+  exit;
 }
 
-// Calcula total
+// Calcular total real
 $total = 0;
-foreach ($productos as $p) {
-    $total += floatval($p['precio']) * intval($p['cantidad']);
+foreach ($carrito as $p) {
+  $cantidad = isset($p['cantidad']) ? (int)$p['cantidad'] : 1;
+  $precio   = isset($p['precio']) ? (float)$p['precio'] : 0;
+  $total   += $cantidad * $precio;
 }
 
-// Crear orden en PayPal
+// Obtener token (¡ojo al nombre de la función!)
 $token = obtenerAccessTokenPayPal();
-$order = crearOrdenPayPal($token, $total);
-
-if (!empty($order['id'])) {
-    echo json_encode(['orderID' => $order['id']]);
-    exit;
+if (!$token) {
+  echo json_encode(['error' => 'No se pudo obtener access_token']);
+  exit;
 }
 
-// Error al crear orden
-http_response_code(500);
-echo json_encode(['error' => 'No fue posible crear la orden']);
-exit;
+// Crear orden en PayPal con el total calculado
+$orden = crearOrdenPayPal($token, $total);
+
+if (!empty($orden['id'])) {
+  echo json_encode(['orderID' => $orden['id']]);
+} else {
+  // Devuelve el error crudo que mandó PayPal para depurar
+  echo json_encode(['error' => $orden]);
+}

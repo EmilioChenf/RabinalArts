@@ -203,9 +203,27 @@ header a{ color: var(--color-fondo) !important; }
   });
 </script>
 <!-- PayPal SDK -->
-<script src="https://www.paypal.com/sdk/js?client-id=<?= PAYPAL_CLIENT_ID ?>&currency=USD"></script>
+<!-- PayPal SDK (LIVE) -->
+<script src="https://www.paypal.com/sdk/js?client-id=ASL-laHLPUATRI3V7_T5BKx0Aayc3BTvqKtRKwMe6HsWrCCkOAjLigt4mntSJacvaduzrvnIoU9usQg2&currency=USD"></script>
 <script>
 paypal.Buttons({
+createOrder: () => {
+  const carrito = JSON.parse(localStorage.getItem('productos') || '[]');
+  return fetch('php/paypal_create_order.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ carrito })
+  })
+  .then(res => res.text())
+  .then(text => {
+    console.log('create_order RAW:', text); // <--- temporal
+    const data = JSON.parse(text);
+    if (!data.orderID) throw new Error(data.error || 'No orderID');
+    return data.orderID;
+  });
+},
+
+
   onApprove: (data) => {
     return fetch('php/paypal_capture_order.php', {
       method: 'POST',
@@ -226,12 +244,14 @@ paypal.Buttons({
       Swal.fire('Error','Respuesta no válida del servidor. Revisa consola.','error');
     });
   },
+
   onError: err => {
     console.error('PayPal onError:', err);
     Swal.fire('Error','Ocurrió un error con PayPal.','error');
   }
 }).render('#paypal-button-container');
 </script>
+
 
 </body>
 </html>
