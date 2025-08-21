@@ -1,19 +1,157 @@
 <?php
-// factura_compras.php
+// ===== Libro Mayor (replica la lógica del Libro Diario) =====
+session_start();
 include 'conexion.php';
 
-// 1) Si se pasa compra_id por GET, cargamos esa compra interna
-$compra_info = [];
-if (isset($_GET['compra_id'])) {
-    $cid = (int)$_GET['compra_id'];
-    $stmt = $conn->prepare("SELECT * FROM compras_internas WHERE id = ?");
-    $stmt->bind_param("i", $cid);
-    $stmt->execute();
-    $compra_info = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+function validDate($d){ return preg_match('/^\d{4}-\d{2}-\d{2}$/',$d)?$d:date('Y-m-d'); }
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function q($n){ return number_format((float)$n,2,'.',','); }
+function fecha_corta($dt){
+  static $mes = [1=>'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  $ts = strtotime($dt);
+  if ($ts === false) return h($dt);
+  $d=(int)date('d',$ts); $m=(int)date('m',$ts);
+  return sprintf('%02d-%s',$d,$mes[$m]??date('M',$ts));
 }
-?>
 
+// ---- filtros (mismo estilo que el diario) ----
+$from = validDate($_GET['from'] ?? date('Y-m-01'));
+$to   = validDate($_GET['to']   ?? date('Y-m-d'));
+
+$from_sql = $conn->real_escape_string($from);
+$to_sql   = $conn->real_escape_string($to);
+
+// ---- Traer todos los movimientos (como en el Diario) ----
+// NOTA: usamos una subconsulta X y filtramos afuera por DATE(fecha) para unificar.
+$sqlMov = "
+SELECT origen, partida_id, fecha, descripcion, cuenta_id, cuenta, debe, haber
+FROM (
+  SELECT 'compras' AS origen, p.id AS partida_id, p.created_at AS fecha, p.descripcion,
+         d.cuenta_id, c.nombre AS cuenta, d.debe, d.haber
+    FROM partidas_contables_compras p
+    JOIN partidas_contables_compras_detalle d ON d.partida_id = p.id
+    JOIN cuentas_contables c ON c.id = d.cuenta_id
+
+  UNION ALL
+
+  SELECT 'ventas', p.id, p.fecha, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+    FROM partidas_contables_ventas p
+    JOIN partida_detalle_ventas d ON d.partida_id = p.id
+    JOIN cuentas_contables c ON c.id = d.cuenta_id
+
+  UNION ALL
+
+  SELECT 'planilla', p.id, p.created_at, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+    FROM partidas_contables_planilla p
+    JOIN partida_detalle_planilla d ON d.partida_id = p.id
+    JOIN cuentas_contables c ON c.id = d.cuenta_id
+
+  UNION ALL
+
+  SELECT IF(p.tipo='apertura','apertura','general') AS origen, p.id, p.fecha, p.descripcion,
+         d.cuenta_id, c.nombre, d.debe, d.haber
+    FROM partidas_contables p
+    JOIN partida_detalle d ON d.partida_id = p.id
+    JOIN cuentas_contables c ON c.id = d.cuenta_id
+) X
+WHERE DATE(fecha) BETWEEN '$from_sql' AND '$to_sql'
+ORDER BY fecha, origen, partida_id, cuenta_id
+";
+
+$resMov = $conn->query($sqlMov);
+if (!$resMov) {
+  die("Error obteniendo movimientos: ".$conn->error);
+}
+
+// Agrupamos por cuenta (Libro Mayor = 1 cuadro por cuenta)
+$porCuenta = [];             // cuenta_id => ['nombre'=>..., 'movs'=>[]]
+$hayAperturaEnRango = [];    // cuenta_id => bool (si hubo una partida 'apertura' en el rango)
+
+while ($r = $resMov->fetch_assoc()) {
+  $cid = (int)$r['cuenta_id'];
+  if (!isset($porCuenta[$cid])) {
+    $porCuenta[$cid] = ['nombre'=>$r['cuenta'], 'movs'=>[]];
+  }
+  $porCuenta[$cid]['movs'][] = [
+    'fecha'      => $r['fecha'],
+    'origen'     => $r['origen'],
+    'partida_id' => (int)$r['partida_id'],
+    'descripcion'=> (string)$r['descripcion'],
+    'debe'       => (float)$r['debe'],
+    'haber'      => (float)$r['haber'],
+  ];
+  if ($r['origen'] === 'apertura') {
+    $hayAperturaEnRango[$cid] = true;
+  }
+}
+$resMov->free();
+
+// ---- Función para calcular saldo anterior a FROM (usando el mismo universo UNION) ----
+function saldoAnteriorCuenta($conn, $cuentaId, $fromDate) {
+  $s = 0.0;
+  $sql = "
+    SELECT
+      COALESCE(SUM(debe),0) AS tot_debe,
+      COALESCE(SUM(haber),0) AS tot_haber
+    FROM (
+      SELECT d.debe, d.haber, p.created_at AS fecha
+        FROM partidas_contables_compras p
+        JOIN partidas_contables_compras_detalle d ON d.partida_id=p.id
+       WHERE d.cuenta_id = ? AND DATE(p.created_at) < ?
+      UNION ALL
+      SELECT d.debe, d.haber, p.fecha
+        FROM partidas_contables_ventas p
+        JOIN partida_detalle_ventas d ON d.partida_id=p.id
+       WHERE d.cuenta_id = ? AND DATE(p.fecha) < ?
+      UNION ALL
+      SELECT d.debe, d.haber, p.created_at
+        FROM partidas_contables_planilla p
+        JOIN partida_detalle_planilla d ON d.partida_id=p.id
+       WHERE d.cuenta_id = ? AND DATE(p.created_at) < ?
+      UNION ALL
+      SELECT d.debe, d.haber, p.fecha
+        FROM partidas_contables p
+        JOIN partida_detalle d ON d.partida_id=p.id
+       WHERE d.cuenta_id = ? AND DATE(p.fecha) < ?
+    ) U
+  ";
+  if ($st = $conn->prepare($sql)) {
+  $st->bind_param('isisisis', $cuentaId,$fromDate,$cuentaId,$fromDate,$cuentaId,$fromDate,$cuentaId,$fromDate);
+    // (ambas funcionan igual; depende de tu versión de PHP)
+    if (!$st->execute()) { $st->close(); return 0.0; }
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    $s = (float)$row['tot_debe'] - (float)$row['tot_haber'];
+  }
+  return $s;
+}
+
+// ---- Si quieres preseleccionar TODAS las cuentas cuando hay rango (como antes) ----
+$catalogo = [];
+$q = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
+while($c = $q->fetch_assoc()) { $catalogo[(int)$c['id']] = $c['nombre']; }
+$q->free();
+
+// Si NO hubo movimientos en el rango, igual mostramos cuentas seleccionadas?:
+$seleccion = isset($_GET['cuentas']) && is_array($_GET['cuentas']) ? array_map('intval', $_GET['cuentas']) : [];
+if ($from && $to && empty($seleccion)) {
+  // Si vienen fechas pero no selección, mostramos todas
+  $seleccion = array_keys($catalogo);
+}
+
+// Si hay selección, filtramos $porCuenta por esos IDs; si no, lo dejamos tal cual
+if (!empty($seleccion)) {
+  $porCuenta = array_filter(
+    $porCuenta,
+    fn($cid) => in_array($cid, $seleccion, true),
+    ARRAY_FILTER_USE_KEY
+  );
+}
+
+// ---- Generar UI ----
+?>
 
 <!doctype html>
 <html lang="en">
@@ -298,72 +436,7 @@ if (isset($_GET['compra_id'])) {
 
       
 <main class="app-main p-4">
-<?php
-// libro_diario.php — Libro Mayor con filtro de fechas y todas las cuentas
-date_default_timezone_set('America/Guatemala');
-include 'conexion.php';
 
-// Helpers
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-function q($n){ return number_format((float)$n, 2, '.', ','); }
-function fecha_es_corta($dt){
-  static $mes = [1=>'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  $ts = strtotime($dt);
-  if ($ts === false) return h($dt);
-  $d  = (int)date('d', $ts);
-  $m  = (int)date('m', $ts);
-  return sprintf('%02d-%s', $d, $mes[$m] ?? date('M', $ts));
-}
-
-// Params
-$saldoInicial = isset($_GET['saldo_inicial']) ? (float)$_GET['saldo_inicial'] : 0.00;
-$desdeRaw     = isset($_GET['desde']) ? trim($_GET['desde']) : '';
-$hastaRaw     = isset($_GET['hasta']) ? trim($_GET['hasta']) : '';
-$esFecha      = fn($s)=> (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $s);
-$desdeOk      = $esFecha($desdeRaw) ? $desdeRaw : '';
-$hastaOk      = $esFecha($hastaRaw) ? $hastaRaw : '';
-$desdeDT      = $desdeOk ? $desdeOk.' 00:00:00' : '1970-01-01 00:00:00';
-$hastaDT      = $hastaOk ? $hastaOk.' 23:59:59' : '9999-12-31 23:59:59';
-
-// Catálogo de cuentas (todas)
-$cuentasCatalogo = [];
-$res = $conn->query("SELECT id, nombre FROM cuentas_contables ORDER BY nombre");
-if ($res) {
-  while ($row = $res->fetch_assoc()) $cuentasCatalogo[] = $row;
-  $res->free();
-}
-
-// Selección de cuentas (si hay fechas, forzamos TODAS)
-$seleccion     = isset($_GET['cuentas']) && is_array($_GET['cuentas']) ? $_GET['cuentas'] : [];
-$selIds        = array_values(array_unique(array_filter(array_map('intval', $seleccion), fn($x)=>$x>0)));
-if ($desdeOk && $hastaOk) {
-  // Mostrar TODAS las cuentas y dejarlas preseleccionadas en el filtro
-  $selIds = array_map(fn($c)=> (int)$c['id'], $cuentasCatalogo);
-}
-
-// Función: obtiene movimientos de libro_mayor por cuenta dentro del rango
-function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
-  $rows=[]; $totDebe=0.00; $totHaber=0.00;
-  $sql = "SELECT id, fecha, partida_id, debe, haber, origen
-            FROM libro_mayor
-           WHERE cuenta_id = ? AND fecha BETWEEN ? AND ?
-        ORDER BY fecha ASC, partida_id ASC, id ASC";
-  if ($st = $conn->prepare($sql)){
-    $st->bind_param("iss", $cuentaId, $desdeDT, $hastaDT);
-    $st->execute();
-    $r = $st->get_result();
-    while ($x = $r->fetch_assoc()){
-      $x['debe']  = (float)$x['debe'];
-      $x['haber'] = (float)$x['haber'];
-      $totDebe  += $x['debe'];
-      $totHaber += $x['haber'];
-      $rows[] = $x;
-    }
-    $st->close();
-  }
-  return [$rows,$totDebe,$totHaber];
-}
-?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -374,8 +447,7 @@ function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
   <style>
-    body { font-family: 'Times New Roman', serif; font-size: 12px; background:#f6f7fb; }
-    .app-main { background:transparent; }
+    body { font-family: 'Times New Roman', serif; font-size: 12px; }
     .lm-card { background:#fff; border:1px solid #d1d5db; border-radius:10px; margin-bottom:18px; }
     .lm-header { text-align:center; padding:12px 8px 0 8px; }
     .lm-header h2 { font-size:18px; margin:0; font-weight:700; letter-spacing:.5px; }
@@ -388,20 +460,17 @@ function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
     .num { text-align:right; font-variant-numeric: tabular-nums; }
     .folio { background:#eaf3ff; border:1px solid #93c5fd; padding:6px 10px; border-radius:8px; font-weight:600; }
     .ref-pill { font-size:11px; color:#6b7280; border:1px solid #d1d5db; padding:1px 6px; border-radius:999px; }
-    .toolbar .btn { border-radius:8px; }
-    .logo { position:absolute; top:12px; right:12px; height:52px; }
     .desc-input { width:100%; border:0; background:transparent; outline:none; }
     .desc-input::placeholder { color:#9ca3af; }
+    .logo { position:absolute; top:12px; right:12px; height:52px; }
     @media print {
       .no-print { display:none !important; }
       .lm-card { border:none; }
       body { background:#fff; }
-      .desc-input { border:0; background:transparent; }
     }
   </style>
 </head>
-<body>
-<main class="app-main p-4">
+<body class="p-4">
 
   <img src="../../../dist/assets/img/rabi.png" class="logo" alt="Logo">
 
@@ -409,85 +478,88 @@ function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
     <!-- Filtros -->
     <div class="row g-3 align-items-end no-print mb-3">
       <div class="col-12">
-        <form id="frmFiltro" class="row g-2">
+        <form method="GET" class="row g-2" id="frmFiltro">
           <div class="col-sm-3">
             <label class="form-label"><strong>Desde</strong></label>
-            <input type="date" name="desde" id="desde" class="form-control" value="<?= h($desdeOk) ?>">
+            <input type="date" name="from" class="form-control" value="<?= h($from) ?>">
           </div>
           <div class="col-sm-3">
             <label class="form-label"><strong>Hasta</strong></label>
-            <input type="date" name="hasta" id="hasta" class="form-control" value="<?= h($hastaOk) ?>">
+            <input type="date" name="to" class="form-control" value="<?= h($to) ?>">
           </div>
           <div class="col-sm-6">
             <label class="form-label"><strong>Cuentas contables</strong> (múltiple)</label>
-            <select id="cuentas" name="cuentas[]" class="form-select" multiple
-                    data-placeholder="Selecciona una o más cuentas">
-              <?php foreach ($cuentasCatalogo as $c): ?>
-                <option value="<?= (int)$c['id'] ?>"
-                  <?= in_array($c['id'], $selIds, true) ? 'selected':'' ?>>
-                  <?= h($c['nombre']) ?>
+            <select name="cuentas[]" id="cuentas" class="form-select" multiple data-placeholder="Selecciona una o más cuentas">
+              <?php foreach ($catalogo as $id => $nom): ?>
+                <option value="<?= (int)$id ?>" <?= in_array($id, $seleccion, true) ? 'selected':'' ?>>
+                  <?= h($nom) ?>
                 </option>
               <?php endforeach; ?>
             </select>
           </div>
-          <div class="col-sm-3">
-            <label class="form-label">Saldo inicial (opcional)</label>
-            <input type="number" name="saldo_inicial" id="saldo_inicial" step="0.01"
-                   class="form-control" value="<?= q($saldoInicial) ?>">
-          </div>
-          <div class="col-sm-9 d-flex align-items-end gap-2">
+          <div class="col-sm-12 d-flex align-items-end gap-2">
             <button class="btn btn-primary">Ver</button>
             <button type="button" class="btn btn-outline-secondary" id="btnSelTodas">Seleccionar todas</button>
             <button type="button" class="btn btn-outline-dark" onclick="window.print()">🖨️ Imprimir</button>
           </div>
         </form>
-        <div class="form-text">
-          * Si eliges un rango de fechas, se mostrarán **todas** las cuentas automáticamente.
-        </div>
       </div>
     </div>
 
-    <!-- Encabezado general -->
+    <!-- Encabezado -->
     <div class="lm-header mb-2">
       <h2>RABINALARTS</h2>
       <h3>LIBRO MAYOR</h3>
       <div class="lm-sub">Cifras expresadas en Quetzales (Q)</div>
-      <?php if ($desdeOk || $hastaOk): ?>
-        <div class="lm-sub">Período: <?= h($desdeOk?:'—') ?> a <?= h($hastaOk?:'—') ?></div>
-      <?php endif; ?>
+      <div class="lm-sub">Período: <?= h($from) ?> a <?= h($to) ?></div>
     </div>
 
-    <?php if (empty($selIds)): ?>
-      <div class="alert alert-info">Selecciona un período o una o más cuentas para mostrar su Libro Mayor.</div>
+    <?php if (empty($porCuenta) && empty($seleccion)): ?>
+      <div class="alert alert-info">No hay movimientos en el rango. Elige un período y/o cuentas.</div>
     <?php else: ?>
-      <?php foreach ($selIds as $cid):
-        // nombre de cuenta
-        $nombreCuenta = '';
-        if ($st = $conn->prepare("SELECT nombre FROM cuentas_contables WHERE id=?")){
-          $st->bind_param("i", $cid);
-          $st->execute();
-          $st->bind_result($nombreCuenta);
-          $st->fetch();
-          $st->close();
+
+      <?php
+      // si hay selección pero no hubo movimientos, igual mostramos las cuentas vacías
+      $cuentasParaMostrar = !empty($seleccion)
+        ? array_values($seleccion)
+        : array_keys($porCuenta);
+
+      foreach ($cuentasParaMostrar as $cid):
+        $cid = (int)$cid;
+        $nombreCuenta = $catalogo[$cid] ?? ($porCuenta[$cid]['nombre'] ?? '');
+        if ($nombreCuenta === '') continue;
+
+        $movs = $porCuenta[$cid]['movs'] ?? [];
+        // ordena por fecha/partida
+        usort($movs, function($a,$b){
+          $fa = strtotime($a['fecha']??'1970-01-01');
+          $fb = strtotime($b['fecha']??'1970-01-01');
+          if ($fa === $fb){
+            if (($a['partida_id']??0) === ($b['partida_id']??0)) return 0;
+            return ($a['partida_id']??0) <=> ($b['partida_id']??0);
+          }
+          return $fa <=> $fb;
+        });
+
+        // ¿Hubo apertura en el rango para esta cuenta?
+        $tieneApertura = !empty($hayAperturaEnRango[$cid]);
+        // si NO hubo apertura en el rango, calculamos saldo anterior y lo insertamos como “Saldo inicial”
+        $saldoPrev = 0.0;
+        if (!$tieneApertura) {
+          $saldoPrev = saldoAnteriorCuenta($conn, $cid, $from);
         }
-        if ($nombreCuenta === '') {
-          echo '<div class="alert alert-warning">La cuenta #'.(int)$cid.' no existe.</div>';
-          continue;
-        }
-        // movimientos del rango
-        [$movs,$totDebe,$totHaber] = obtener_movimientos($conn, $cid, $desdeDT, $hastaDT);
-        $saldo = (float)$saldoInicial;
+
+        // Totales del rango
+        $totDebe = 0.0; $totHaber = 0.0;
+        foreach ($movs as $m) { $totDebe += $m['debe']; $totHaber += $m['haber']; }
+
+        // Saldo acumulado
+        $saldo = $saldoPrev;
       ?>
       <div class="lm-card p-3">
         <div class="d-flex justify-content-between align-items-center my-2 no-print">
           <div><strong>Cuenta:</strong> <?= h($nombreCuenta) ?></div>
-          <div class="d-flex gap-2 align-items-center">
-            <div class="folio">FOLIO: <?= (int)$cid ?></div>
-            <form method="post" action="guardar_libro_mayor.php" class="d-inline">
-              <input type="hidden" name="cuenta_id" value="<?= (int)$cid ?>">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">🔄 Sincronizar cuenta</button>
-            </form>
-          </div>
+          <div class="folio">FOLIO: <?= (int)$cid ?></div>
         </div>
 
         <div class="table-responsive">
@@ -503,48 +575,44 @@ function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
               </tr>
             </thead>
             <tbody>
-              <?php
-              // Saldo inicial (si aplica)
-              if ($saldoInicial != 0){
-                // Si se filtró por fecha, ponemos la fecha "desde" como referencia del saldo
-                $fechaSI = $desdeOk ? $desdeOk : date('Y-m-01');
-                echo '<tr>'.
-                     '<td>'.h(fecha_es_corta($fechaSI)).'</td>'.
-                     '<td><span class="ref-pill">—</span></td>'.
-                     '<td><input class="desc-input" value="Saldo inicial"></td>'.
-                     '<td class="num">—</td>'.
-                     '<td class="num">—</td>'.
-                     '<td class="num"><strong>'.q($saldo).'</strong></td>'.
-                     '</tr>';
-              }
+              <?php if (!$tieneApertura && abs($saldoPrev) > 0.004): ?>
+                <tr>
+                  <td><?= h(fecha_corta($from)) ?></td>
+                  <td><span class="ref-pill">—</span></td>
+                  <td><input class="desc-input" value="Saldo inicial"></td>
+                  <td class="num">—</td>
+                  <td class="num">—</td>
+                  <td class="num"><strong><?= q($saldoPrev) ?></strong></td>
+                </tr>
+              <?php endif; ?>
 
-              if (empty($movs)){
-                echo '<tr><td colspan="6" class="text-center text-muted">No hay movimientos en el Libro Mayor para esta cuenta en el período seleccionado.</td></tr>';
-              } else {
-                foreach ($movs as $mv){
-                  // descripción editable sugerida
+              <?php if (empty($movs)): ?>
+                <tr><td colspan="6" class="text-center text-muted">Sin movimientos en el rango.</td></tr>
+              <?php else: ?>
+                <?php foreach ($movs as $mv):
+                  $saldo = $saldo + (float)$mv['debe'] - (float)$mv['haber'];
                   switch ($mv['origen']){
-                    case 'compras':  $sugerido = 'Compras'; break;
-                    case 'ventas':   $sugerido = 'Ventas';  break;
-                    case 'planilla': $sugerido = 'Planilla';break;
-                    default:         $sugerido = 'Partida general';
+                    case 'compras':  $descSug = 'Compras'; break;
+                    case 'ventas':   $descSug = 'Ventas'; break;
+                    case 'planilla': $descSug = 'Planilla'; break;
+                    case 'apertura': $descSug = 'Partida de apertura'; break;
+                    default:         $descSug = 'Partida general';
                   }
-                  $saldo = $saldo + $mv['debe'] - $mv['haber'];
-                  echo '<tr>'.
-                       '<td>'.h(fecha_es_corta($mv['fecha'])).'</td>'.
-                       '<td><span class="ref-pill">'.(int)$mv['partida_id'].'</span></td>'.
-                       '<td><input class="desc-input" placeholder="Escribe la descripción…" value="'.h($sugerido).'"></td>'.
-                       '<td class="num">'.($mv['debe']>0?q($mv['debe']):'').'</td>'.
-                       '<td class="num">'.($mv['haber']>0?q($mv['haber']):'').'</td>'.
-                       '<td class="num"><strong>'.q($saldo).'</strong></td>'.
-                       '</tr>';
-                }
-              }
-              ?>
+                ?>
+                  <tr>
+                    <td><?= h(fecha_corta($mv['fecha'])) ?></td>
+                    <td><span class="ref-pill"><?= (int)$mv['partida_id'] ?></span></td>
+                    <td><input class="desc-input" value="<?= h($descSug) ?>"></td>
+                    <td class="num"><?= $mv['debe'] > 0 ? q($mv['debe']) : '' ?></td>
+                    <td class="num"><?= $mv['haber'] > 0 ? q($mv['haber']) : '' ?></td>
+                    <td class="num"><strong><?= q($saldo) ?></strong></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="3">Totales</td>
+                <td colspan="3">Totales del período</td>
                 <td class="num"><?= q($totDebe) ?></td>
                 <td class="num"><?= q($totHaber) ?></td>
                 <td class="num"><?= q($saldo) ?></td>
@@ -554,32 +622,24 @@ function obtener_movimientos($conn, $cuentaId, $desdeDT, $hastaDT){
         </div>
       </div>
       <?php endforeach; ?>
+
     <?php endif; ?>
   </div>
-</main>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script>
-$(function(){
-  // Select2
-  $('#cuentas').select2({
-    theme: 'bootstrap-5',
-    width: '100%',
-    placeholder: $('#cuentas').data('placeholder') || 'Selecciona una o más cuentas'
-  });
-
-  // Botón "Seleccionar todas"
-  $('#btnSelTodas').on('click', function(){
-    const allVals = Array.from(document.querySelectorAll('#cuentas option')).map(o=>o.value);
-    $('#cuentas').val(allVals).trigger('change');
-  });
-});
-</script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script>
+    $(function(){
+      $('#cuentas').select2({ theme:'bootstrap-5', width:'100%', placeholder: $('#cuentas').data('placeholder')||'Selecciona una o más cuentas' });
+      $('#btnSelTodas').on('click', function(){
+        const allVals = Array.from(document.querySelectorAll('#cuentas option')).map(o=>o.value);
+        $('#cuentas').val(allVals).trigger('change');
+      });
+    });
+  </script>
 </body>
 </html>
-
 </main>
 
     <!--end::App Main-->
