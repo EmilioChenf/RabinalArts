@@ -224,26 +224,36 @@ createOrder: () => {
 },
 
 
-  onApprove: (data) => {
-    return fetch('php/paypal_capture_order.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderID: data.orderID })
+onApprove: (data) => {
+  const carrito   = JSON.parse(localStorage.getItem('productos') || '[]');
+  const telefono  = document.getElementById('numero')?.value || '';
+  const direccion = document.getElementById('direccion')?.value || '';
+
+  return fetch('php/paypal_capture_order.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      orderID: data.orderID,
+      carrito,
+      telefono,
+      direccion
     })
-    .then(res => res.json())
-    .then(json => {
-      if (json.success) {
-        Swal.fire('¡Listo!','Pago procesado correctamente.','success')
-          .then(() => window.location.href='carrito.php?compra=ok');
-      } else {
-        Swal.fire('Error', json.error || 'Error desconocido', 'error');
-      }
-    })
-    .catch(err => {
-      console.error('Fetch/parsing error:', err);
-      Swal.fire('Error','Respuesta no válida del servidor. Revisa consola.','error');
-    });
-  },
+  })
+  .then(res => res.json())
+  .then(json => {
+    if (json.success) {
+      Swal.fire('¡Listo!','Pago procesado y venta guardada.','success')
+        .then(() => window.location.href='carrito.php?compra=ok');
+    } else {
+      Swal.fire('Error', json.error || 'Error desconocido', 'error');
+    }
+  })
+  .catch(err => {
+    console.error('Fetch/parsing error:', err);
+    Swal.fire('Error','Respuesta no válida del servidor. Revisa consola.','error');
+  });
+},
+
 
   onError: err => {
     console.error('PayPal onError:', err);
